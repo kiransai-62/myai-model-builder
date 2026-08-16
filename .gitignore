@@ -1,0 +1,67 @@
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Packaging & Build
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE & Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+
+# MYAI Framework & Home
+.myai/
+.cache/
+
+# Model Weights & Checkpoints (Heavy Artifacts)
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+models/base/
+models/trained/
+models/adapters/
+checkpoints/
+indexes/
+
+# Exported Distributions & Archives
+dist/
+exports/
+*.myai
+*.zip
+*.tar.gz
+
+# Secrets & Environment Variables
+.env
+*.env
+*.key
+*.pem
+secrets/
+credentials/

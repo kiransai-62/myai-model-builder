@@ -1,0 +1,12 @@
+id: qwen2.5-0.5b-instruct
+name: Qwen 2.5 0.5B Instruct
+source:
+  repository: Qwen/Qwen2.5-0.5B-Instruct
+architecture:
+  parameters: 0.5B
+hardware:
+  minimum_vram_gb: 2
+training:
+  methods: [lora, qlora]
+license:
+  name: Apache-2.0

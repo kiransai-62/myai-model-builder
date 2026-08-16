@@ -1,0 +1,55 @@
+import typer
+from .init_cmd import init
+from .system_cmd import check
+from .data_cmd import add, list_datasets, info, validate
+from .model_cmd import list_models, add as add_model, use as use_model, list_trained, use_trained
+from .recommend_cmd import recommend
+from .train_cmd import train
+from .index_cmd import build as build_index
+from .export_cmd import export
+from .ask_cmd import ask
+from .serve_cmd import serve
+from .evaluate_cmd import evaluate
+
+from .runs_cmd import list_runs, info as run_info
+
+app = typer.Typer(help="MYAI: Local-first AI model builder", no_args_is_help=True)
+
+app.command("init")(init)
+app.command("recommend")(recommend)
+app.command("train")(train)
+app.command("export")(export)
+app.command("ask")(ask)
+app.command("serve")(serve)
+app.command("evaluate")(evaluate)
+
+data_app = typer.Typer(help="Data operations")
+data_app.command("add")(add)
+data_app.command("list")(list_datasets)
+data_app.command("info")(info)
+data_app.command("validate")(validate)
+app.add_typer(data_app, name="data")
+
+model_app = typer.Typer(help="Model operations")
+model_app.command("list")(list_models)
+model_app.command("add")(add_model)
+model_app.command("use")(use_model)
+model_app.command("trained")(list_trained)
+model_app.command("use-trained")(use_trained)
+app.add_typer(model_app, name="model")
+
+system_app = typer.Typer(help="System operations")
+system_app.command("check")(check)
+app.add_typer(system_app, name="system")
+
+index_app = typer.Typer(help="Knowledge index operations")
+index_app.command("build")(build_index)
+app.add_typer(index_app, name="index")
+
+runs_app = typer.Typer(help="Training run provenance")
+runs_app.command("list")(list_runs)
+runs_app.command("info")(run_info)
+app.add_typer(runs_app, name="runs")
+
+if __name__ == "__main__":
+    app()

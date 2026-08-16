@@ -1,0 +1,34 @@
+from rich.table import Table
+from ..core.home import ensure_home
+from ..core.console import console
+from ..training.runs import RunManager
+
+def list_runs():
+    """List all training runs and their execution status."""
+    table = Table(title="Training Runs")
+    table.add_column("Run ID", style="cyan")
+    table.add_column("Model")
+    table.add_column("Dataset")
+    table.add_column("Status")
+    for r in RunManager(ensure_home()).list():
+        status = r["result"].get("status", "RUNNING")
+        status_styled = (
+            f"[green]{status}[/green]"
+            if status == "SUCCESS"
+            else (f"[red]{status}[/red]" if status in ("FAILED", "INTERRUPTED") else status)
+        )
+        table.add_row(
+            r["run_id"],
+            r["config"].get("base_model", "?"),
+            r["config"].get("dataset_id", "?"),
+            status_styled,
+        )
+    console.print(table)
+
+def info(run_id: str):
+    """Display frozen config and result metadata for a specific run ID."""
+    run = RunManager(ensure_home()).get(run_id)
+    if run:
+        console.print_json(data={"config": run.read_config(), "result": run.read_result()})
+    else:
+        console.print(f"[red]Run '{run_id}' not found.[/red]")

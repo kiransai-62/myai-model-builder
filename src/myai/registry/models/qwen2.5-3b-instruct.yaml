@@ -1,0 +1,12 @@
+id: qwen2.5-3b-instruct
+name: Qwen 2.5 3B Instruct
+source:
+  repository: Qwen/Qwen2.5-3B-Instruct
+architecture:
+  parameters: 3B
+hardware:
+  minimum_vram_gb: 8
+training:
+  methods: [lora, qlora]
+license:
+  name: Apache-2.0
