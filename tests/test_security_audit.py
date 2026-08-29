@@ -850,12 +850,17 @@ class TestExportSecurity(unittest.TestCase):
 # ═══════════════════════════════════════════════════════════════════
 # §27  LOGGING & INFORMATION DISCLOSURE
 # ═══════════════════════════════════════════════════════════════════
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_SRC_DIR = _REPO_ROOT / "src"
+_TESTS_DIR = _REPO_ROOT / "tests"
+
+
 class TestInformationDisclosure(unittest.TestCase):
 
     def test_no_secrets_in_source(self):
         import re
         secret_re = re.compile(r"(sk-|ghp_|hf_|AKIA)[a-zA-Z0-9]{16,}")
-        src_dir = Path("e:/CMD GitHub/myai/src")
+        src_dir = _SRC_DIR
         for pyfile in src_dir.rglob("*.py"):
             content = pyfile.read_text(encoding="utf-8", errors="ignore")
             matches = secret_re.findall(content)
@@ -874,7 +879,7 @@ class TestInformationDisclosure(unittest.TestCase):
 class TestFilesystemSecurity(unittest.TestCase):
 
     def test_no_subprocess_in_source(self):
-        src_dir = Path("e:/CMD GitHub/myai/src")
+        src_dir = _SRC_DIR
         for pyfile in src_dir.rglob("*.py"):
             content = pyfile.read_text(encoding="utf-8", errors="ignore")
             self.assertNotIn("subprocess.call", content, f"subprocess.call found in {pyfile}")
@@ -882,13 +887,13 @@ class TestFilesystemSecurity(unittest.TestCase):
             self.assertNotIn("shell=True", content, f"shell=True found in {pyfile}")
 
     def test_no_pickle_in_source(self):
-        src_dir = Path("e:/CMD GitHub/myai/src")
+        src_dir = _SRC_DIR
         for pyfile in src_dir.rglob("*.py"):
             content = pyfile.read_text(encoding="utf-8", errors="ignore")
             self.assertNotIn("pickle.load", content, f"Unsafe pickle.load in {pyfile}")
 
     def test_no_exec_in_source(self):
-        src_dir = Path("e:/CMD GitHub/myai/src")
+        src_dir = _SRC_DIR
         for pyfile in src_dir.rglob("*.py"):
             content = pyfile.read_text(encoding="utf-8", errors="ignore")
             # exec() but not model.eval()
@@ -930,7 +935,7 @@ class TestConfigSecurity(unittest.TestCase):
 class TestSecretsManagement(unittest.TestCase):
 
     def test_no_env_files_in_repo(self):
-        repo = Path("e:/CMD GitHub/myai")
+        repo = _REPO_ROOT
         env_files = list(repo.glob(".env")) + list(repo.glob("**/.env"))
         env_files = [f for f in env_files if ".venv" not in str(f) and "venv" not in str(f)]
         self.assertEqual(len(env_files), 0, f"Found .env files: {env_files}")
@@ -938,7 +943,7 @@ class TestSecretsManagement(unittest.TestCase):
     def test_no_credentials_in_tests(self):
         import re
         secret_re = re.compile(r"(sk-|ghp_|hf_|AKIA)[a-zA-Z0-9]{20,}")
-        tests_dir = Path("e:/CMD GitHub/myai/tests")
+        tests_dir = _TESTS_DIR
         for pyfile in tests_dir.rglob("*.py"):
             content = pyfile.read_text(encoding="utf-8", errors="ignore")
             # Exclude files that intentionally use fake keys for PII testing

@@ -23,7 +23,7 @@ jobs:
         pip install -e ".[dev,serving,eval]"
         
     - name: Run Pytest
-      run: pytest -v
+      run: python -m pytest -v
       
     - name: Smoke Test CLI
       run: |
