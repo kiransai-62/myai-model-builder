@@ -6,7 +6,7 @@ from ..core.console import print_success
 from ..core.goal import prompt_for_goal, GoalProfile, TaskType, Domain
 
 def init(
-    project_name: str,
+    project_name: str = typer.Argument(".", help="Project name or '.' for current directory"),
     task: Optional[str] = typer.Option(None, "--task", "-t", help="Primary task (instruction-tuning, chat, domain-qa, code, etc.)"),
     domain: Optional[str] = typer.Option(None, "--domain", "-d", help="Operating domain (general, medical, finance, fitness, etc.)"),
     context_priority: Optional[str] = typer.Option(None, "--context", help="Context length priority (short, balanced, long-context)"),
@@ -15,8 +15,10 @@ def init(
     yes: bool = typer.Option(False, "--yes", "-y", help="Use default goal settings without prompting"),
 ):
     root = Path(project_name).resolve()
-    if root.exists() and any(root.iterdir()):
-        print(f"Error: Directory {root} is not empty.")
+    actual_project_name = root.name if project_name in (".", "./", "") else project_name
+    
+    if (root / "myai.yaml").exists():
+        print(f"Error: Directory {root} is already an initialized MYAI project.")
         raise typer.Exit(1)
         
     root.mkdir(parents=True, exist_ok=True)
@@ -35,11 +37,16 @@ def init(
         target_deployment=target_deployment,
     )
     
-    cfg = ProjectConfig(name=project_name, goal=goal_profile)
+    cfg = ProjectConfig(name=actual_project_name, goal=goal_profile)
     cfg.save(root)
     
-    gitignore = "models/base/\nmodels/trained/\nindexes/\ncheckpoints/\ndist/\n"
-    (root / ".gitignore").write_text(gitignore)
+    gitignore_path = root / ".gitignore"
+    if not gitignore_path.exists():
+        gitignore = "models/base/\nmodels/trained/\nindexes/\ncheckpoints/\ndist/\n"
+        gitignore_path.write_text(gitignore)
     
-    print_success(f"Created project: {project_name}")
-    print(f"Next steps:\n  cd {project_name}\n  myai system check")
+    print_success(f"Initialized MYAI project: {actual_project_name}")
+    if project_name not in (".", "./", ""):
+        print(f"Next steps:\n  cd {project_name}\n  myai system check")
+    else:
+        print("Next steps:\n  myai data add <path/to/data.jsonl>\n  myai auto --export")

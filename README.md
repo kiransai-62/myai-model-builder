@@ -42,14 +42,13 @@ Tell MYAI what AI you want. MYAI analyzes your **goal**, your **hardware**, and 
 ## ⚡ Quickstart in 3 Commands
 
 ```bash
-# 1. Initialize your project with an interactive Goal Profile
-myai init fitness-coach
+# 1. Initialize in current directory (or create a subfolder with 'myai init <name>')
+myai init .
 
 # 2. Add your dataset in-place (JSONL, JSON, CSV, TXT, Parquet)
-cd fitness-coach
 myai data add ./workouts.jsonl
 
-# 3. Run Autopilot: Goal → Hardware → Data → Train → Eval → Optimize → Export
+# 3. Autopilot: Goal → Hardware → Data → Train → Eval → Optimize → Export
 myai auto --export
 ```
 
