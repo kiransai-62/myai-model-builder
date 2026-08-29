@@ -22,15 +22,21 @@ def register_dataset(src: Path, quiet: bool = False) -> dict:
 
 def add(
     source_path: str = typer.Argument(..., help="Path to local dataset directory or file"),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Automatically accept confirmation prompts")
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Target base model identifier or repository for tokenizer selection"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Automatically accept confirmation prompts"),
 ):
-    """Scan and register local user dataset in-place without moving or uploading files."""
+    """Scan, register, and tokenize local user dataset in-place without moving or uploading files."""
     src = Path(source_path).resolve()
     if not src.exists():
         print_error(f"Source path does not exist: {source_path}")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]MYAI Dataset Manager[/bold cyan]\n")
+    console.print("\n[bold cyan]📚 MYAI Dataset Manager[/bold cyan]\n")
+    console.print("[bold]Step 1/5 — Training Data[/bold]\n")
+    console.print("MYAI uses [bold green]Reference Mode[/bold green]:")
+    console.print(" • Original data will not be moved.")
+    console.print(" • Original data will not be modified.")
+    console.print(" • Original data will not be overwritten.\n")
     console.print(f"Scanning: {src}\n")
 
     scan = scan_directory(src)
@@ -79,8 +85,25 @@ def add(
     if project_root:
         cfg = ProjectConfig.load(project_root)
         cfg.dataset_id = meta["dataset_id"]
+        if model:
+            cfg.model_id = model
         cfg.save(project_root)
         console.print(f"\n[green]✓ Attached to project: {cfg.name}[/green]")
+        
+        # Automatic Tokenizer Analysis
+        try:
+            from ..tokenization.analyzer import analyze_dataset_tokens
+            stats = analyze_dataset_tokens(
+                source_path=src,
+                dataset_id=meta["dataset_id"],
+                model_identifier=model or cfg.model_id,
+                project_root=project_root,
+                use_cache=True,
+            )
+            stats.print_report()
+        except Exception as e:
+            console.print(f"[dim]Tokenizer analysis notice: {e}[/dim]")
+
         console.print("[bold green]✓ READY FOR TRAINING[/bold green]")
     else:
         console.print("\n[dim]Run inside a MYAI project directory to attach automatically, or use dataset ID in config.[/dim]")
@@ -164,7 +187,7 @@ def info(dataset_id: Optional[str] = typer.Argument(None, help="Dataset ID to in
             console.print(f"    [yellow]• {w}[/yellow]")
 
 def validate():
-    """Validate current project dataset in-place."""
+    """Validate current project dataset in-place and show tokenizer stats."""
     root = require_project_root()
     cfg = ProjectConfig.load(root)
     data_dir = resolve_dataset_source(root, cfg)
@@ -176,3 +199,77 @@ def validate():
     console.print(f"Examples         : {report.examples:,}")
     console.print(f"Estimated tokens : {report.tokens_approx:,}")
     console.print(f"Duplicates       : {report.duplicates}")
+
+    # Also run Tokenizer Analysis if available
+    try:
+        from ..tokenization.analyzer import analyze_dataset_tokens
+        stats = analyze_dataset_tokens(
+            source_path=data_dir,
+            dataset_id=cfg.dataset_id or "default",
+            model_identifier=cfg.model_id,
+            project_root=root,
+            use_cache=True,
+        )
+        stats.print_report()
+    except Exception:
+        pass
+
+def tokenize(
+    dataset: Optional[str] = typer.Option(None, "--dataset", "-d", help="Dataset ID to tokenize"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Target model identifier or repository"),
+    path: Optional[str] = typer.Option(None, "--path", "-p", help="Direct path to dataset file or folder"),
+    refresh: bool = typer.Option(False, "--refresh", help="Force re-tokenization ignoring cache"),
+):
+    """Run model-aware tokenizer analysis and calculate token distributions."""
+    root = find_project_root()
+    target_path = None
+    target_id = dataset or "dataset"
+    target_model = model
+
+    if path:
+        target_path = Path(path).resolve()
+    elif root:
+        cfg = ProjectConfig.load(root)
+        target_id = dataset or cfg.dataset_id or "dataset"
+        target_model = model or cfg.model_id
+        target_path = resolve_dataset_source(root, cfg)
+    elif dataset:
+        mgr = DatasetManager(ensure_home())
+        meta = mgr.get(dataset)
+        if meta and meta.get("source"):
+            target_path = Path(meta["source"])
+
+    if not target_path or not target_path.exists():
+        print_error(f"Could not resolve dataset source path. Specify --path or run inside a MYAI project.")
+        raise typer.Exit(1)
+
+    from ..tokenization.analyzer import analyze_dataset_tokens
+    stats = analyze_dataset_tokens(
+        source_path=target_path,
+        dataset_id=target_id,
+        model_identifier=target_model,
+        project_root=root,
+        use_cache=not refresh,
+        force_refresh=refresh,
+    )
+    stats.print_report()
+
+from ..data.cleaner import prepare_datasets
+
+def prepare(
+    val_split: float = typer.Option(0.1, "--val-split", help="Validation set split fraction (0.0 - 0.5)"),
+    fuzzy: bool = typer.Option(True, "--fuzzy/--no-fuzzy", help="Enable fuzzy deduplication"),
+):
+    """Clean, deduplicate, and prepare safe train/validation datasets in Reference Mode."""
+    root = require_project_root()
+    cfg = ProjectConfig.load(root)
+    src_path = resolve_dataset_source(root, cfg)
+
+    sources = [src_path] if src_path.exists() else []
+    if not sources:
+        print_error(f"Dataset source does not exist: {src_path}")
+        raise typer.Exit(1)
+
+    report = prepare_datasets(sources, root, val_split=val_split, fuzzy_dedup=fuzzy)
+    report.print_report()
+    console.print(f"[green]✨ Processed datasets saved to data/train.jsonl and data/validation.jsonl[/green]\n")

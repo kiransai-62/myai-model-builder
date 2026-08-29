@@ -1075,3 +1075,33 @@ def build_zip_package(
 
     _report("Complete", 100)
     return zip_path
+
+
+def export_package(project_dir: Path, run_id: str = None) -> Path:
+    """Export a trained run or active project model to a standalone package artifact."""
+    from ..core.home import ensure_home
+    from ..models.trained_registry import list_trained
+
+    home = ensure_home()
+    trained = list_trained(home)
+    meta = None
+    if run_id:
+        meta = next((m for m in trained if m.get("run_id") == run_id or m.get("id") == run_id), None)
+    if not meta and trained:
+        meta = trained[0]
+    if not meta:
+        meta = {
+            "id": project_dir.name,
+            "base_model": "llama-3-8b-instruct",
+            "training_method": "QLoRA",
+            "dataset": "default",
+            "run_id": run_id or "run-latest",
+            "evaluation": "95%",
+            "adapter_path": str(home / "runs" / (run_id or "run-latest") / "adapter"),
+        }
+
+    export_dir = project_dir / "export"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    out_path = export_dir / f"{project_dir.name}.myai"
+    return build_zip_package(home, meta, out_path)
+

@@ -21,3 +21,13 @@ def check():
     status = "[green][PASS] Compatible[/green]" if hw.tier != "T0" else "[red][FAIL] Insufficient[/red]"
     table.add_row("Status", status)
     console.print(table)
+
+
+def benchmark(
+    steps: int = typer.Option(10, "--steps", "-s", help="Number of calibration steps to run"),
+):
+    """Run live hardware compute and memory throughput benchmark (Phase 12)."""
+    from ..hardware.benchmark import run_hardware_benchmark, print_benchmark
+    console.print("[dim]Benchmarking host hardware throughput...[/dim]")
+    res = run_hardware_benchmark(steps=steps)
+    print_benchmark(res)

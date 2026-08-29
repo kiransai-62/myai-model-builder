@@ -1,10 +1,13 @@
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, List, Optional, Union
 from ..hardware.detector import detect_hardware, HardwareReport
 from ..data.validator import validate_data, DataReport
 from .registry import get_registry_models
 from .schema import RegistryModel
 from ..core.config import ProjectConfig
+from ..core.goal import GoalProfile, TaskType
+
 
 @dataclass
 class ModelRecommendation:
@@ -17,9 +20,10 @@ class ModelRecommendation:
 def recommend_models(
     hardware: HardwareReport,
     data_report: DataReport,
-    models: list[RegistryModel] | None = None
+    models: list[RegistryModel] | None = None,
+    goal: GoalProfile | None = None,
 ) -> list[ModelRecommendation]:
-    """Score and rank registered models based on hardware and dataset characteristics."""
+    """Score and rank registered models based on hardware, dataset, and goal characteristics."""
     if models is None:
         models = get_registry_models()
 
@@ -70,6 +74,33 @@ def recommend_models(
         elif hardware.tier in ("T0", "T1") and ("0.5B" in m.parameters or "1.5B" in m.parameters or "3B" in m.parameters):
             score += 5
 
+        # Goal-driven adjustments
+        if goal is not None:
+            if goal.task == TaskType.CODE:
+                if "coder" in m.id.lower() or "code" in m.name.lower():
+                    score += 25
+                    reasons.append("Optimized for code synthesis and programming tasks")
+                else:
+                    score -= 10
+                    reasons.append("General base model; code-specialized model preferred")
+            elif goal.task in (TaskType.CHAT, TaskType.DOMAIN_QA):
+                if "instruct" in m.id.lower() or "chat" in m.id.lower():
+                    score += 15
+                    reasons.append("Instruction-tuned architecture matches conversational/Q&A goal")
+            
+            if goal.target_deployment == "edge":
+                if m.parameters_billions <= 1.5:
+                    score += 15
+                    reasons.append("Lightweight footprint ideal for edge deployment")
+                elif m.parameters_billions >= 7.0:
+                    score -= 25
+                    reasons.append("Exceeds optimal parameters for edge deployment")
+                    
+            if goal.latency_priority == "fast":
+                if m.parameters_billions <= 3.0:
+                    score += 10
+                    reasons.append("Low parameter latency matches fast response priority")
+
         # Normalize score
         score = max(0, min(100, score))
         recommendations.append(
@@ -87,13 +118,63 @@ def recommend_models(
 
 from ..data.manager import resolve_dataset_source
 
+CATALOG = get_registry_models()
+
+
+@dataclass
+class RecommendationResult:
+    model: RegistryModel
+    score: int
+    reasoning: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+
+def recommend_model(
+    hardware: HardwareReport,
+    goal: GoalProfile,
+    data_summary: Any = None,
+    models: list[RegistryModel] | None = None,
+) -> RecommendationResult:
+    global CATALOG
+    if models is None:
+        models = get_registry_models()
+        CATALOG = models
+
+    if data_summary is None:
+        data_report = DataReport()
+    elif isinstance(data_summary, DataReport):
+        data_report = data_summary
+    else:
+        data_report = DataReport(
+            examples=getattr(data_summary, "num_samples", 0),
+            tokens_approx=getattr(data_summary, "tokens_approx", 50000),
+            duplicates=getattr(data_summary, "exact_duplicates", 0),
+        )
+
+    recs = recommend_models(hardware, data_report, models, goal=goal)
+    if not recs:
+        default_m = models[0] if models else RegistryModel(
+            "llama-3-8b-instruct", "Llama 3 8B Instruct", "8B", 8.0, ["QLoRA"],
+            "meta-llama/Meta-Llama-3-8B-Instruct", "Llama-3"
+        )
+        return RecommendationResult(model=default_m, score=50, reasoning=["Default fallback model selected."])
+    top = recs[0]
+    return RecommendationResult(
+        model=top.model,
+        score=top.score,
+        reasoning=top.reasons,
+        warnings=[r for r in top.reasons if "below" in r.lower() or "exceeds" in r.lower()]
+    )
+
+
 def get_top_recommendation(root: Path, cfg: ProjectConfig) -> tuple[ModelRecommendation | None, HardwareReport, DataReport]:
-    """Inspect project dataset and system hardware, returning top recommendation."""
+    """Inspect project dataset, system hardware, and goal profile, returning top recommendation."""
     data_dir = resolve_dataset_source(root, cfg)
     report = validate_data(data_dir)
     hw = detect_hardware()
     models = get_registry_models()
     
-    recs = recommend_models(hw, report, models)
+    recs = recommend_models(hw, report, models, goal=cfg.goal)
     top_rec = recs[0] if recs else None
     return top_rec, hw, report
+

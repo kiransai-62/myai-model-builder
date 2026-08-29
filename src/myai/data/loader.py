@@ -12,4 +12,7 @@ def load_file(file_path: Path) -> list[dict]:
     elif ext == ".csv":
         with open(file_path, "r", encoding="utf-8-sig") as f:
             return list(csv.DictReader(f))
+    elif ext == ".txt":
+        lines = [line.strip() for line in file_path.read_text(encoding="utf-8-sig").splitlines() if line.strip()]
+        return [{"text": l} for l in lines]
     return []

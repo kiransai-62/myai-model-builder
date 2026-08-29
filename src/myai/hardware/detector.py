@@ -11,6 +11,14 @@ class HardwareReport:
     vram_gb: float
     tier: str
 
+    @property
+    def has_gpu(self) -> bool:
+        return self.vram_gb > 0 and self.gpu not in ("None detected", "PyTorch not installed")
+
+    @property
+    def free_storage_gb(self) -> float:
+        return self.disk_gb
+
 def detect_hardware() -> HardwareReport:
     cpu = f"{psutil.cpu_count(logical=False)} cores"
     ram_gb = round(psutil.virtual_memory().total / (1024**3), 1)

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 import yaml
+from .goal import GoalProfile
 
 @dataclass
 class TrainingConfig:
@@ -31,6 +32,7 @@ class ProjectConfig:
     data_path: str = "data"
     dataset_id: str = ""
     model_id: str = ""
+    goal: GoalProfile = field(default_factory=GoalProfile)
     training: TrainingConfig = field(default_factory=TrainingConfig)
     gate: GateConfig = field(default_factory=GateConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
@@ -57,6 +59,7 @@ class ProjectConfig:
         if not config_path.exists():
             return cls()
         raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        g_raw = raw.get("goal", {})
         t = raw.get("training", {})
         g = raw.get("gate", {})
         e = raw.get("evaluation", {})
@@ -65,6 +68,7 @@ class ProjectConfig:
             data_path=raw.get("data", {}).get("path", "data"),
             dataset_id=raw.get("data", {}).get("dataset_id", "") or raw.get("dataset_id", ""),
             model_id=raw.get("model", {}).get("model_id", ""),
+            goal=GoalProfile.from_dict(g_raw),
             training=TrainingConfig(
                 method=t.get("method", "qlora"),
                 epochs=t.get("epochs", 3),
@@ -90,6 +94,7 @@ class ProjectConfig:
     def save(self, root: Path):
         data = {
             "project": {"name": self.name},
+            "goal": self.goal.to_dict(include_weights=False),
             "data": {
                 "path": self.data_path,
                 "dataset_id": self.dataset_id,
@@ -117,3 +122,14 @@ class ProjectConfig:
             },
         }
         (root / "myai.yaml").write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+
+def load_config(root: Path) -> dict:
+    """Helper to safely read myai.yaml from a project or home directory."""
+    config_path = root / "myai.yaml"
+    if not config_path.exists():
+        return {}
+    try:
+        return yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return {}

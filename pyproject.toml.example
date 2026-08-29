@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "myai"
+version = "0.1.0"
+description = "Local-first autonomous AI model builder and packager"
+readme = "README.md"
+authors = [{ name = "MYAI Team" }]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+train = [
+    "torch>=2.0.0",
+    "transformers>=4.36.0",
+    "peft>=0.7.0",
+    "bitsandbytes>=0.41.0",
+    "accelerate>=0.25.0",
+]
+eval = [
+    "evaluate>=0.4.0",
+    "rouge-score>=0.1.2",
+    "nltk>=3.8.0",
+]
+serving = [
+    "numpy>=1.24.0",
+]
+
+[project.scripts]
+myai = "myai.cli.main:app"

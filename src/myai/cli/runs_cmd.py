@@ -32,3 +32,25 @@ def info(run_id: str):
         console.print_json(data={"config": run.read_config(), "result": run.read_result()})
     else:
         console.print(f"[red]Run '{run_id}' not found.[/red]")
+
+def best():
+    """Show the experiment leaderboard ranked by goal-weighted composite score."""
+    from ..core.config import load_config
+    from ..core.goal import GoalProfile
+    from ..models.leaderboard import Leaderboard
+
+    home = ensure_home()
+    cfg = load_config(home)
+
+    # Load goal profile from project config
+    goal_data = cfg.get("goal", {})
+    if not goal_data:
+        console.print("[yellow]No goal profile found. Run: myai init[/yellow]")
+        return
+    goal = GoalProfile.from_dict(goal_data)
+
+    lb = Leaderboard(goal, runs_dir=home / "leaderboard")
+    if not lb.runs:
+        console.print("[yellow]No evaluated runs yet. Run: myai train && myai evaluate[/yellow]")
+        return
+    lb.print_board()

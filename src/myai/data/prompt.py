@@ -2,15 +2,25 @@ import os
 from pathlib import Path
 from ..core.console import print_error
 
-def prompt_data_path(message: str = "Path:") -> Path:
-    """Ask the user for the data path. Re-asks until valid. Never guesses."""
+from typing import Optional
+
+def prompt_data_path(message: str = "Path:", default: Optional[Path | str] = None) -> Path:
+    """Ask the user for the data path. Re-asks until valid. Supports optional default."""
     first = True
     while True:
         if not first:
             print_error("Path not found.\n")
-        raw = input(f"\n{message if first else 'Please enter a valid data file or folder path:'}\n> ")
+        prompt_msg = f"\n{message if first else 'Please enter a valid data file or folder path:'}"
+        if default and first:
+            prompt_msg += f" [press Enter for {default}]"
+        raw = input(f"{prompt_msg}\n> ")
         first = False
         raw = raw.strip().strip('"').strip("'")
+
+        if not raw and default:
+            p = Path(default).expanduser().resolve()
+            if p.exists():
+                return p
 
         if raw.lower() in ("q", "quit", "exit"):
             raise SystemExit(0)

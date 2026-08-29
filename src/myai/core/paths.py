@@ -16,3 +16,5 @@ def require_project_root() -> Path:
         print_error(f"No {CONFIG_FILE} found. Run `myai init <project>` first.")
         raise SystemExit(1)
     return root
+
+get_active_project_dir = require_project_root

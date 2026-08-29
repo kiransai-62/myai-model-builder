@@ -26,11 +26,33 @@ def train(
     data: str = typer.Option(None, "--data", "-d", help="Skip the Step-1 prompt"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Automatically accept confirmation prompts"),
     model: str = typer.Option(None, "--model", "-m", help="Explicitly select base model"),
+    auto: bool = typer.Option(False, "--auto", "-a", help="Launch autonomous Goal-to-Deployment build (Phase 15)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview autonomous plan without training"),
+    opt_iters: int = typer.Option(2, "--opt-iters", help="Maximum optimizer rounds in auto mode"),
 ):
     root = require_project_root()
     cfg = ProjectConfig.load(root)
     home = ensure_home()
     selection_mode = "user_selected"
+
+    # ── AUTONOMOUS AUTOPILOT DISPATCH ───────────────────────────
+    if auto:
+        from ..autopilot.orchestrator import Autopilot, print_autopilot
+        from ..training.engine import run_training
+        from ..export.packager import export_package
+
+        pilot = Autopilot(
+            root,
+            train_fn=lambda s: run_training(root, s),
+            export_fn=lambda run_id: export_package(root, run_id),
+            export=True,
+            dry_run=dry_run,
+            model_override=model,
+            max_opt_iters=opt_iters,
+        )
+        report = pilot.run()
+        print_autopilot(report, cfg.name or root.name)
+        return
 
     console.print("\n[bold cyan]MYAI TRAINER[/bold cyan]")
     console.print("─" * 28 + "\n")
@@ -39,17 +61,20 @@ def train(
     console.print("[bold]Step 1/5 — Training Data[/bold]\n")
     console.print("Enter your training data path.\nYou can provide a file or folder.\n")
 
+    reg_src = resolve_dataset_source(root, cfg)
+    has_reg = reg_src and reg_src.exists()
+
     if data:
         src = Path(data.strip('"')).expanduser().resolve()
         if not src.exists():
-            src = prompt_data_path()
+            src = prompt_data_path(default=reg_src if has_reg else None)
     elif yes:
         # Non-interactive / test fallback
-        src = resolve_dataset_source(root, cfg)
+        src = reg_src
         if not src.exists():
             src = prompt_data_path()
     else:
-        src = prompt_data_path()
+        src = prompt_data_path(default=reg_src if has_reg else None)
 
     # ── STEP 2/5 — DATA ANALYSIS ────────────────────────────────
     console.print("\n[bold]Step 2/5 — Data Analysis[/bold]\n")
