@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/myai-logo.jpg" alt="MYAI Logo - Build · Train · Evolve" width="280">
+  <img src="assets/myai-logo.png" alt="MYAI Logo - Build · Train · Evolve" width="280">
 </p>
 
 <h1 align="center">MYAI</h1>
