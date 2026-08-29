@@ -28,6 +28,6 @@ jobs:
     - name: Smoke Test CLI
       run: |
         myai --help
-        myai init test-project
+        myai init test-project --yes
         cd test-project
         myai system check
