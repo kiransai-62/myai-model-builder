@@ -46,7 +46,7 @@ Tell MYAI what AI you want. MYAI analyzes your **goal**, your **hardware**, and 
 myai init .
 
 # 2. Add your dataset in-place (JSONL, JSON, CSV, TXT, Parquet)
-myai data add <path/to-data> ex - ./workouts.jsonl
+myai data add <path/to-data>      ex - ./workouts.jsonl
 
 # 3. Autopilot: Goal → Hardware → Data → Train → Eval → Optimize → Export
 myai auto --export
