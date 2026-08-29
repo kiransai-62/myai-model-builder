@@ -6,10 +6,6 @@ from myai.models.leaderboard import Leaderboard
 from myai.optimizer.engine import OptimizerEngine, print_report
 from myai.training.engine import run_training
 
-app = typer.Typer()
-
-
-@app.command()
 def optimize(
     max_iters: int = typer.Option(3, "--max-iters", help="Bounded loop (§18)"),
     min_delta: float = typer.Option(2.0, "--min-delta", help="Minimum justified Δ"),

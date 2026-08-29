@@ -35,12 +35,14 @@ def info(run_id: str):
 
 def best():
     """Show the experiment leaderboard ranked by goal-weighted composite score."""
+    from ..core.paths import find_project_root
     from ..core.config import load_config
     from ..core.goal import GoalProfile
     from ..models.leaderboard import Leaderboard
 
     home = ensure_home()
-    cfg = load_config(home)
+    root = find_project_root()
+    cfg = load_config(root) if root else load_config(home)
 
     # Load goal profile from project config
     goal_data = cfg.get("goal", {})

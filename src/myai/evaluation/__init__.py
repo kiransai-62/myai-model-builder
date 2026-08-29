@@ -1,6 +1,5 @@
 from .report import EvaluationReport, MetricResult
 from .runner import run_evaluation, make_runner
-from .retry import decide_retry, apply_changes, RetryDecision
 from .datasets import split_pairs, write_holdout, read_holdout, facts_from_text, load_eval_cases, knowledge_cases_from_holdout
 from .validators import validate_artifacts, Check
 from .metrics import knowledge_case_score, task_score, quality_score, overall_score
@@ -11,9 +10,6 @@ __all__ = [
     "MetricResult",
     "run_evaluation",
     "make_runner",
-    "decide_retry",
-    "apply_changes",
-    "RetryDecision",
     "split_pairs",
     "write_holdout",
     "read_holdout",

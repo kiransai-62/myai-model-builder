@@ -5,9 +5,6 @@ from myai.core.paths import get_active_project_dir
 from myai.training.engine import run_training
 from myai.export.packager import export_package
 
-app = typer.Typer()
-
-
 def _coerce(v: str):
     for cast in (int, float):
         try:
@@ -17,7 +14,6 @@ def _coerce(v: str):
     return {"true": True, "false": False}.get(v.lower(), v)
 
 
-@app.command()
 def auto(
     export: bool = typer.Option(True, "--export/--no-export", help="Export standalone package on completion"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview plan without executing training"),

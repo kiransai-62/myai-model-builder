@@ -11,7 +11,9 @@ from myai.data.validator import DataReport
 from myai.models.schema import RegistryModel
 from myai.models.recommender import recommend_models, get_top_recommendation
 from myai.models.registry import get_registry_models
-from myai.training.trainer import run_training
+from myai.training.engine import run_training_engine
+from myai.training.runs import RunManager
+from myai.data.manager import resolve_dataset_source
 from myai.cli.main import app
 
 class TestModelSelectionAndTraining(unittest.TestCase):
@@ -72,12 +74,39 @@ class TestModelSelectionAndTraining(unittest.TestCase):
         self.assertTrue(top_fit.fits_vram)
         self.assertIn(top_fit.model.id, ["qwen2.5-0.5b-instruct", "qwen2.5-1.5b-instruct", "llama-3.2-1b-instruct"])
 
+    def _train_and_save_meta(self, spec, selection_mode: str) -> dict:
+        manager = RunManager(self.temp_dir)
+        source = resolve_dataset_source(self.temp_dir, self.cfg)
+        run = manager.create({
+            "project": self.cfg.name,
+            "dataset_id": self.cfg.dataset_id,
+            "base_model": spec.id,
+            "selection_mode": selection_mode,
+            "training_method": self.cfg.training.method,
+            "epochs": self.cfg.training.epochs,
+            "batch_size": self.cfg.training.batch_size,
+            "learning_rate": self.cfg.training.learning_rate,
+        })
+        meta = run_training_engine(run, {
+            "cfg": self.cfg,
+            "spec": spec,
+            "source": source,
+            "home": self.temp_dir,
+            "root": self.temp_dir,
+            "selection_mode": selection_mode,
+            "budget_gb": 0.0,
+        })
+        trained_dir = self.temp_dir / "models" / "trained" / self.cfg.name
+        trained_dir.mkdir(parents=True, exist_ok=True)
+        (trained_dir / "metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        return meta
+
     def test_train_user_selected_model_provenance(self):
         """Verify that training on an explicit user-selected model logs user_selected in metadata."""
         models = get_registry_models()
         spec = next(m for m in models if m.id == "qwen2.5-3b-instruct")
         
-        meta = run_training(self.temp_dir, self.cfg, spec, max_retries=1, selection_mode="user_selected")
+        meta = self._train_and_save_meta(spec, selection_mode="user_selected")
         
         self.assertEqual(meta["base_model_id"], "qwen2.5-3b-instruct")
         self.assertEqual(meta["selection_mode"], "user_selected")
@@ -95,7 +124,7 @@ class TestModelSelectionAndTraining(unittest.TestCase):
         spec = next(m for m in models if m.id == "qwen2.5-1.5b-instruct")
         
         self.cfg.model_id = spec.id
-        meta = run_training(self.temp_dir, self.cfg, spec, max_retries=1, selection_mode="recommended")
+        meta = self._train_and_save_meta(spec, selection_mode="recommended")
         
         self.assertEqual(meta["base_model_id"], "qwen2.5-1.5b-instruct")
         self.assertEqual(meta["selection_mode"], "recommended")
