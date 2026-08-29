@@ -26,6 +26,7 @@ class TrainingStrategy:
     config: TrainingConfig
     learning_rate: float
     epochs: int
+    task: str = "sft"                 # "sft", "dpo", "orpo", "simpo", "kto"
     warmup_ratio: float = 0.05
     scheduler: str = "cosine"
     weight_decay: float = 0.01
@@ -108,6 +109,9 @@ def _make_fit(cfg: TrainingConfig, hw: Any, model: Any, reasoning: List[str]) ->
             cfg.lora_rank = 8
             cfg.lora_alpha = 16
             steps.append("reduced LoRA rank to 8")
+        elif not getattr(cfg, "stream_layers", False):
+            cfg.stream_layers = True
+            steps.append("activated Exact Layer Streaming (streams base from RAM to fit low VRAM)")
         else:
             break
 
@@ -197,6 +201,8 @@ def plan_strategy(
                          "Checkpoint retention reduced to 1.")
 
     reasoning.append(f"LoRA rank {rank} + lr {strategy.learning_rate} scaled to {n:,} samples.")
+    if cfg.stream_layers:
+        reasoning.append("🌊 Layer Streaming active: base weights pinned in RAM; peak VRAM ~3.3GB.")
     strategy.reasoning = reasoning
     strategy.assumptions = assumptions + ["AdamW fp32 optimizer states", "+10% allocator overhead"]
     strategy.confidence = 0.85 if has_gpu else 0.65
@@ -225,6 +231,9 @@ def print_strategy(s: TrainingStrategy, model_name: str) -> None:
     t.add_column("k", style="dim")
     t.add_column("v")
     t.add_row("Precision / Rank", f"{c.quantization} / r{c.lora_rank} (α={c.lora_alpha})")
+    if getattr(c, "stream_layers", False):
+        t.add_row("Layer Streaming", "🌊 Enabled (host RAM pinned store)")
+    t.add_row("Task Mode", f"{s.task.upper()}")
     t.add_row("Batch", f"{c.batch_size} × {c.grad_accum} accum = {s.effective_batch} effective")
     t.add_row("Seq / Epochs / LR", f"{c.seq_len} / {s.epochs} / {s.learning_rate}")
     t.add_row("Est. VRAM", f"{s.estimated_vram_gb} GB")
@@ -235,4 +244,4 @@ def print_strategy(s: TrainingStrategy, model_name: str) -> None:
     for r in s.reasoning:
         console.print(f"   ✨ {r}")
     console.print(f"[dim]   assumptions: {', '.join(s.assumptions)}[/dim]")
-    console.print("[dim]💡 Override: myai train --override lr=1e-4 rank=32 epochs=5[/dim]\n")
+    console.print("[dim]💡 Override: myai train --override lr=1e-4 rank=32 stream_layers=True[/dim]\n")

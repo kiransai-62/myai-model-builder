@@ -16,6 +16,8 @@ class ModelRecommendation:
     method: str
     fits_vram: bool
     reasons: list[str] = field(default_factory=list)
+    confidence: float = 0.95
+
 
 def recommend_models(
     hardware: HardwareReport,
@@ -36,48 +38,62 @@ def recommend_models(
     for m in models:
         score = 100
         reasons = []
-        fits_vram = m.vram_min <= (hardware.vram_gb if has_gpu else hardware.ram_gb)
+        
+        # Dual-gate check: Resident VRAM vs Layer Streaming vs CPU
+        fits_resident = m.vram_min <= (hardware.vram_gb if has_gpu else hardware.ram_gb)
+        fits_streaming = has_gpu and hardware.vram_gb >= 3.5 and m.params_b <= 8.0 and "layer_streaming" in m.methods
+        fits_vram = fits_resident or fits_streaming
         
         # Determine training method recommendation
-        if has_gpu and hardware.vram_gb >= m.vram_min:
+        if not has_gpu:
+            method = "LoRA"
+            if hardware.ram_gb >= m.vram_min:
+                reasons.append(f"Runs on CPU with {hardware.ram_gb} GB System RAM")
+            else:
+                reasons.append(f"Requires ~{m.vram_min} GB (Current: {hardware.ram_gb} GB)")
+        elif hardware.vram_gb >= m.vram_min:
             method = "QLoRA"
             reasons.append(f"Fits in {hardware.vram_gb} GB VRAM with QLoRA")
-        elif not has_gpu and hardware.ram_gb >= m.vram_min:
-            method = "LoRA"
-            reasons.append(f"Runs on CPU with {hardware.ram_gb} GB System RAM")
+        elif fits_streaming:
+            method = "Exact Layer Streaming"
+            reasons.append(f"Fits in {hardware.vram_gb} GB VRAM with Layer Streaming (~3.32 GB peak)")
         else:
             method = "QLoRA"
-            reasons.append(f"Requires ~{m.vram_min} GB (Current: {hardware.vram_gb if has_gpu else hardware.ram_gb} GB)")
+            reasons.append(f"Requires ~{m.vram_min} GB (Current: {hardware.vram_gb} GB)")
 
-        # Penalty for VRAM mismatch
+        # Penalty for hardware resource mismatch
         if not fits_vram:
             score -= 50
             reasons.append("Hardware resources below minimum recommendation")
+        elif fits_streaming and not fits_resident:
+            # Slight modifier for streaming overhead vs resident
+            score -= 5
+            reasons.append("Layer streaming activated for low-VRAM GPU")
 
         # Size appropriateness based on tokens
         # For small datasets (< 100k tokens), smaller models (<= 3B) prevent overfitting and train faster
         if data_report.tokens_approx < 100_000:
-            if "0.5B" in m.parameters or "1B" in m.parameters or "1.5B" in m.parameters:
+            if m.params_b <= 1.5:
                 score += 10
                 reasons.append("Optimal parameter size for compact dataset")
-            elif "7B" in m.parameters or "8B" in m.parameters:
+            elif m.params_b >= 7.0:
                 score -= 20
                 reasons.append("Large model for small dataset size (risk of overfitting)")
         elif data_report.tokens_approx > 1_000_000:
-            if "3B" in m.parameters or "7B" in m.parameters or "8B" in m.parameters:
+            if m.params_b >= 3.0 and m.params_b <= 14.0:
                 score += 10
                 reasons.append("High parameter capacity suited for large dataset")
 
         # Hardware Tier boost
-        if hardware.tier in ("T2", "T3") and ("3B" in m.parameters or "7B" in m.parameters):
+        if hardware.tier in ("T2", "T3") and m.params_b in (3.0, 7.0, 8.0, 14.0):
             score += 5
-        elif hardware.tier in ("T0", "T1") and ("0.5B" in m.parameters or "1.5B" in m.parameters or "3B" in m.parameters):
+        elif hardware.tier in ("T0", "T1") and m.params_b <= 3.0:
             score += 5
 
         # Goal-driven adjustments
         if goal is not None:
             if goal.task == TaskType.CODE:
-                if "coder" in m.id.lower() or "code" in m.name.lower():
+                if "coder" in m.id.lower() or "code" in m.name.lower() or "phi-4" in m.id.lower():
                     score += 25
                     reasons.append("Optimized for code synthesis and programming tasks")
                 else:
@@ -87,6 +103,10 @@ def recommend_models(
                 if "instruct" in m.id.lower() or "chat" in m.id.lower():
                     score += 15
                     reasons.append("Instruction-tuned architecture matches conversational/Q&A goal")
+            elif goal.task == TaskType.REASONING:
+                if m.has_reasoning or "distill" in m.id.lower() or "r1" in m.id.lower() or "phi" in m.id.lower():
+                    score += 20
+                    reasons.append("High-depth reasoning architecture matches analytical goal")
             
             if goal.target_deployment == "edge":
                 if m.parameters_billions <= 1.5:
@@ -109,12 +129,14 @@ def recommend_models(
                 score=score,
                 method=method,
                 fits_vram=fits_vram,
-                reasons=reasons
+                reasons=reasons,
+                confidence=m.confidence,
             )
         )
 
     recommendations.sort(key=lambda x: (x.fits_vram, x.score), reverse=True)
     return recommendations
+
 
 from ..data.manager import resolve_dataset_source
 
@@ -177,4 +199,3 @@ def get_top_recommendation(root: Path, cfg: ProjectConfig) -> tuple[ModelRecomme
     recs = recommend_models(hw, report, models, goal=cfg.goal)
     top_rec = recs[0] if recs else None
     return top_rec, hw, report
-

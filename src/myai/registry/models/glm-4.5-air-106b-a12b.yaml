@@ -1,0 +1,35 @@
+id: glm-4.5-air-106b-a12b
+name: GLM-4.5 Air 106B-A12B
+family: GLM-4.5
+modality: Text
+architecture:
+  parameters: 106B
+  type: MoE
+  active_parameters: 12B
+  hidden_size: 4096
+  num_layers: 46
+  context_length: 131072
+hardware:
+  cpu_min_cores: 24
+  ram_min_gb: 128.0
+  minimum_vram_gb: 64.0
+  vram_q4_gb: 65.0
+  vram_fp16_gb: 212.0
+  storage_gb: 90.0
+  finetune_vram_gb: 96.0
+  training_ram_gb: 192.0
+capabilities:
+  vision: false
+  audio: false
+  tools: true
+  reasoning: true
+training:
+  methods:
+  - LoRA
+  - QLoRA
+source:
+  repository: THUDM/glm-4.5-air
+license:
+  name: Open Model License
+recommended_tier: T3
+confidence: 0.97

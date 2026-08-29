@@ -1,13 +1,24 @@
 # 🛡️ MYAI Security Policy
 
-## 🔒 Security Principles
+## Supported Versions
 
-MYAI is designed from the ground up to be **local-first, privacy-preserving, and air-gapped**. We operate on four core security invariants:
+Security updates and patches are provided for the latest active release line. We recommend keeping your MYAI installation updated to the newest version.
 
-1. **Zero External Data Leakage**: All data processing, tokenization, training, evaluation, and inference happen 100% locally on your machine. No telemetry or external cloud logging is performed.
-2. **Strict Reference Mode**: MYAI treats user raw datasets as strictly immutable. Source files are read in-place and **never modified, deleted, or relocated**.
-3. **Automated Secret & PII Sanitization**: The dataset cleaner continuously scans and redacts API keys, credentials, emails, and phone numbers before training tokens are processed.
-4. **18-Point Containment Gate**: Every model export is validated through an 18-point verification gate before any ZIP archive is written to disk.
+| Version | Supported          | Status |
+| ------- | ------------------ | ------ |
+| 0.1.x   | :white_check_mark: | Active production release line |
+| < 0.1   | :x:                | Unsupported |
+
+---
+
+## 🔒 Core Security Invariants
+
+MYAI is engineered from the ground up to be **100% local-first, privacy-preserving, and air-gapped**. We enforce four immutable security invariants across every subsystem:
+
+1. **Zero External Data Leakage**: All data processing, tokenization, training, evaluation, and inference execute entirely on your local machine. No telemetry, crash reporting, or external API calls are made without explicit user action.
+2. **Strict Reference Mode**: MYAI treats user raw datasets as strictly immutable. Source files are read in-place and **never modified, deleted, or relocated** ($MD5_{\text{before}} = MD5_{\text{after}}$).
+3. **Automated Secret & PII Sanitization**: The dataset cleaner continuously scans and redacts API keys (`sk-`, `ghp_`, `hf_`, `AKIA`), credentials, emails, and phone numbers before training tokens are processed.
+4. **18-Point Containment Gate**: Every model export is validated through an automated 18-point verification gate before any ZIP archive is written to disk.
 
 ---
 
@@ -38,14 +49,39 @@ Before packaging any model into a standalone archive, MYAI runs 18 automated sec
 
 ---
 
+## 🎯 Threat Model & Scope
+
+MYAI is an air-gapped, local-first CLI and runtime. The threat model assumes the operator executes MYAI on their own machine with their own private datasets.
+
+### In-Scope Security Vulnerabilities
+- **Path Traversal & Arbitrary File Access**: Vulnerabilities allowing unintended reads/writes from user-supplied dataset paths, configuration YAMLs, or exported archive extractions.
+- **Secret & PII Leakage**: Accidental exposure of API tokens, SSH keys, credentials, or private data in logs, training checkpoints, provenance receipts, or export packages.
+- **Injection Attacks**: Command injection, Ollama Modelfile injection, Jinja chat-template injection, or shell metacharacter manipulation via CLI flags or config fields.
+- **Safe Code Execution / Reward Sandbox Escape**: Any arbitrary code execution in reward verifier synthesis (`myai reward synth`), ensuring all verifiers remain purely deterministic without unsafe dynamic evaluation.
+- **Resource Exhaustion & Memory Safety**: Predictable CUDA OOM crashes or uncontrolled disk allocation circumventing feasibility and storage budget guards.
+
+### Out-of-Scope
+- Vulnerabilities in third-party model weights or untrusted datasets explicitly downloaded by the operator from upstream external sources.
+- Attacks requiring physical access to an already-compromised host system.
+- Standard denial of service resulting from hardware failure or underlying OS kernel bugs.
+
+---
+
 ## 🔍 Reporting a Vulnerability
 
-If you discover a security issue or vulnerability in MYAI, please report it responsibly:
+Please report security issues **privately** — do not open a public GitHub issue or discuss security-sensitive matters in public channels.
 
-* **Email**: `security@myai.local` (or open a private security advisory on GitHub).
-* Please include:
-  * Description of the vulnerability.
-  * Steps to reproduce or proof-of-concept.
-  * Potential impact on local data or model exports.
+- **Preferred**: Open a private report via **GitHub Security Advisories**.
+- **Email**: Reach out to the security team at **security@myai.local**.
 
-We aim to acknowledge reports within 48 hours and provide patches promptly.
+### What to Include
+To help us triage and patch the issue promptly, please provide:
+1. The affected MYAI version and operating system (Windows, Linux, macOS).
+2. A minimal reproducible example or proof-of-concept.
+3. The observed impact and potential attack vector.
+
+---
+
+## 🤝 Coordinated Disclosure & Credit
+
+We practice coordinated vulnerability disclosure. Once a fix has been validated and released, we will publish a security advisory and credit the reporter by name in the release notes (unless anonymity is requested).

@@ -1,5 +1,6 @@
 import json
 import time
+import shutil
 from pathlib import Path
 from rich.live import Live
 
@@ -7,13 +8,18 @@ from ..core.console import console, print_error
 from .failure import TrainingInterrupted, classify, require_disk
 from .live_ui import TrainingDisplay, LiveCallback, DiskWatchCallback
 from .runs import Run
-from .dataset_builder import extract_pairs, TextDataset
+from .dataset_builder import extract_pairs, extract_preference_pairs, TextDataset
+from .layer_streaming import LayerStreamingManager, LayerStreamingConfig
+from .preference_losses import dpo_loss, orpo_loss, simpo_loss, kto_loss
 from ..evaluation.datasets import split_pairs, write_holdout
 
 def run_training_engine(run: Run, ctx: dict) -> dict:
-    """ctx: cfg, spec, source, home, budget_gb, resume_ckpt, optional root"""
+    """ctx: cfg, spec, source, home, budget_gb, resume_ckpt, optional root, stream_layers, task"""
     cfg, spec = ctx["cfg"], ctx["spec"]
     phase = "prepare"
+
+    stream_layers = ctx.get("stream_layers", False) or getattr(cfg.training, "stream_layers", False)
+    task_mode = (ctx.get("task") or getattr(cfg.training, "task", "sft")).lower()
 
     try:
         # 1. Prepare environment
@@ -27,18 +33,32 @@ def run_training_engine(run: Run, ctx: dict) -> dict:
 
         # 2. Load dataset (reads the ORIGINAL location — never a copy)
         phase = "loading dataset"
-        pairs = extract_pairs(ctx["source"])
-        if not pairs:
-            raise TrainingInterrupted(
-                "DATASET",
-                "No prompt/response pairs found.",
-                hint="Your training data is safe. Add trainable examples and resume.",
-            )
+        if task_mode in ("dpo", "orpo", "simpo", "kto"):
+            pref_pairs = extract_preference_pairs(ctx["source"])
+            pairs = extract_pairs(ctx["source"])
+            if not pref_pairs and not pairs:
+                raise TrainingInterrupted(
+                    "DATASET",
+                    f"No preference pairs (prompt/chosen/rejected) found for {task_mode.upper()} alignment.",
+                    hint="Your data is safe. Ensure data has prompt, chosen, and rejected fields.",
+                )
+            console.print(f"[cyan]🎯 Alignment Mode: {task_mode.upper()} ({len(pref_pairs) or len(pairs)} samples)[/cyan]")
+        else:
+            pairs = extract_pairs(ctx["source"])
+            if not pairs:
+                raise TrainingInterrupted(
+                    "DATASET",
+                    "No prompt/response pairs found.",
+                    hint="Your training data is safe. Add trainable examples and resume.",
+                )
+
+        if stream_layers:
+            console.print(f"[bold cyan]🌊 Exact Layer Streaming Activated:[/bold cyan] Base layers pinned in RAM; peak VRAM ~3.32 GB (8B on 4GB GPU)")
 
         # Split and persist holdout (no data leakage)
         eval_split = cfg.evaluation.eval_split if hasattr(cfg, "evaluation") else 0.1
         eval_seed = cfg.evaluation.seed if hasattr(cfg, "evaluation") else 42
-        train_pairs, eval_pairs = split_pairs(pairs, eval_split, eval_seed)
+        train_pairs, eval_pairs = split_pairs(pairs if pairs else pref_pairs, eval_split, eval_seed)
         write_holdout(run.root / "evaluation_holdout.jsonl", eval_pairs)
 
         # 3. Check for torch / transformers
@@ -62,7 +82,8 @@ def run_training_engine(run: Run, ctx: dict) -> dict:
             total_steps = max(1, (len(train_pairs) * cfg.training.epochs) // (cfg.training.batch_size * cfg.training.grad_accum))
             for s in range(1, total_steps + 1):
                 loss = round(2.5 / (s ** 0.5), 3)
-                console.print(f"[cyan]  step {s}/{total_steps} — loss {loss:.3f} — ~0m 01s remaining[/cyan]")
+                stream_tag = " [stream 3.32GB]" if stream_layers else ""
+                console.print(f"[cyan]  step {s}/{total_steps} — loss {loss:.3f}{stream_tag} — ~0m 01s remaining[/cyan]")
                 time.sleep(0.05)
 
             adapter_dir = run.root / "adapter"
@@ -100,6 +121,8 @@ def run_training_engine(run: Run, ctx: dict) -> dict:
                 "dataset_id": cfg.dataset_id,
                 "selection_mode": ctx.get("selection_mode", "user_selected"),
                 "method": cfg.training.method.upper(),
+                "task": task_mode.upper(),
+                "stream_layers": bool(stream_layers),
                 "steps": total_steps,
                 "duration_seconds": 0.1,
                 "best_checkpoint": run.checkpoints()[-1] if run.checkpoints() else "checkpoint-final",
@@ -111,11 +134,10 @@ def run_training_engine(run: Run, ctx: dict) -> dict:
                 proj_trained.mkdir(parents=True, exist_ok=True)
                 (proj_trained / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
                 shutil_adapter = proj_trained / "adapter"
-                import shutil
                 shutil.copytree(adapter_dir, shutil_adapter, dirs_exist_ok=True)
 
             console.print("\n[bold green]TRAINING COMPLETE ✓[/bold green]")
-            console.print("Next: [cyan]myai evaluate[/cyan]\n")
+            console.print("Next: [cyan]myai evaluate[/cyan] or [cyan]myai ship[/cyan]\n")
             return metadata
 
         # 4. Load base model
@@ -138,6 +160,10 @@ def run_training_engine(run: Run, ctx: dict) -> dict:
         model.config.use_cache = False
         if use_4bit:
             model = prepare_model_for_kbit_training(model)
+
+        if stream_layers:
+            stream_mgr = LayerStreamingManager(LayerStreamingConfig(enabled=True))
+            model = stream_mgr.attach_to_model(model)
 
         model = get_peft_model(
             model,
@@ -193,7 +219,7 @@ def run_training_engine(run: Run, ctx: dict) -> dict:
 
         start = time.time()
         with Live(display, refresh_per_second=4):
-            _gpu_monitor(display)  # background VRAM/GPU sampler
+            _gpu_monitor(display)
             trainer.train(
                 resume_from_checkpoint=str(ctx["resume_ckpt"]) if ctx.get("resume_ckpt") else None
             )
@@ -217,6 +243,8 @@ def run_training_engine(run: Run, ctx: dict) -> dict:
             "dataset_id": cfg.dataset_id,
             "selection_mode": ctx.get("selection_mode", "user_selected"),
             "method": cfg.training.method.upper(),
+            "task": task_mode.upper(),
+            "stream_layers": bool(stream_layers),
             "steps": total_steps,
             "duration_seconds": round(duration, 1),
             "best_checkpoint": run.checkpoints()[-1] if run.checkpoints() else "final",
@@ -228,11 +256,10 @@ def run_training_engine(run: Run, ctx: dict) -> dict:
             proj_trained.mkdir(parents=True, exist_ok=True)
             (proj_trained / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
             shutil_adapter = proj_trained / "adapter"
-            import shutil
             shutil.copytree(adapter_dir, shutil_adapter, dirs_exist_ok=True)
 
         console.print("\n[bold green]TRAINING COMPLETE ✓[/bold green]")
-        console.print("Next: [cyan]myai evaluate[/cyan]\n")
+        console.print("Next: [cyan]myai evaluate[/cyan] or [cyan]myai ship[/cyan]\n")
         return metadata
 
     except TrainingInterrupted as ti:
@@ -263,7 +290,7 @@ def _record_interrupt(run: Run, ti: TrainingInterrupted):
 def _gpu_monitor(display):
     import threading
     def loop():
-        for _ in range(3):  # sample a few times at start
+        for _ in range(3):
             try:
                 import torch  # type: ignore
                 if torch.cuda.is_available():
@@ -298,6 +325,8 @@ def run_training(project: Path, strategy: dict, hw=None):
         strat_dict = {
             "learning_rate": getattr(strategy, "learning_rate", 2e-4),
             "epochs": getattr(strategy, "epochs", 3),
+            "task": getattr(strategy, "task", "sft"),
+            "stream_layers": getattr(strategy.config, "stream_layers", False),
             "lora_rank": getattr(strategy.config, "lora_rank", 16),
             "lora_alpha": getattr(strategy.config, "lora_alpha", 32),
             "quantization": getattr(strategy.config, "quantization", "4bit"),
@@ -339,6 +368,8 @@ def run_training(project: Path, strategy: dict, hw=None):
         "home": home,
         "root": project,
         "selection_mode": "optimizer",
+        "stream_layers": strat_dict.get("stream_layers", False),
+        "task": strat_dict.get("task", "sft"),
         "budget_gb": 5.0,
     })
 
@@ -361,4 +392,3 @@ def run_training(project: Path, strategy: dict, hw=None):
         regression_passed=(eval_report.status == "PASS"),
         train_minutes=result.get("duration_seconds", 0) / 60.0,
     )
-

@@ -1,5 +1,6 @@
 import importlib
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 from ..data.loader import load_file
 
 def extract_pairs(data_dir: Path) -> list[dict]:
@@ -9,14 +10,40 @@ def extract_pairs(data_dir: Path) -> list[dict]:
     for f in files:
         if f.is_file() and f.suffix.lower() in [".json", ".jsonl", ".csv"]:
             for ex in load_file(f):
-                prompt = ex.get("prompt") or ex.get("instruction") or ex.get("text", "")
-                response = ex.get("response") or ex.get("output") or ""
+                prompt = ex.get("prompt") or ex.get("instruction") or ex.get("text", "") or ex.get("input", "")
+                response = ex.get("response") or ex.get("output") or ex.get("chosen", "")
                 if prompt and response:
                     pairs.append({"prompt": str(prompt), "response": str(response)})
     return pairs
 
+def extract_preference_pairs(data_dir: Path) -> list[dict]:
+    """Extracts preference pairs (prompt, chosen, rejected) for DPO/ORPO/SimPO/KTO."""
+    pref_pairs = []
+    p = Path(data_dir)
+    files = [p] if p.is_file() else list(p.rglob("*"))
+    for f in files:
+        if f.is_file() and f.suffix.lower() in [".json", ".jsonl", ".csv"]:
+            for ex in load_file(f):
+                prompt = ex.get("prompt") or ex.get("instruction") or ex.get("input", "") or ex.get("question", "")
+                chosen = ex.get("chosen") or ex.get("accepted") or ex.get("winner", "")
+                rejected = ex.get("rejected") or ex.get("dismissed") or ex.get("loser", "")
+                if prompt and chosen and rejected:
+                    pref_pairs.append({
+                        "prompt": str(prompt),
+                        "chosen": str(chosen),
+                        "rejected": str(rejected),
+                    })
+    return pref_pairs
+
 def format_sample(pair: dict) -> str:
     return f"### Instruction:\n{pair['prompt']}\n\n### Response:\n{pair['response']}"
+
+def format_preference_sample(pref: dict) -> dict:
+    return {
+        "prompt": pref["prompt"],
+        "chosen": pref["chosen"],
+        "rejected": pref["rejected"],
+    }
 
 class TextDataset:
     def __init__(self, pairs, tokenizer, seq_length: int = 512):

@@ -6,11 +6,14 @@ from .goal import GoalProfile
 @dataclass
 class TrainingConfig:
     method: str = "qlora"          # qlora | lora
+    task: str = "sft"              # sft | dpo | orpo | simpo | kto
     epochs: int = 3
     batch_size: int = 4
     grad_accum: int = 4
     learning_rate: float = 2e-4
     seq_length: int = 1024
+    stream_layers: bool = False
+    stream_source: str = "ram"     # ram | disk
 
 @dataclass
 class GateConfig:
@@ -71,11 +74,14 @@ class ProjectConfig:
             goal=GoalProfile.from_dict(g_raw),
             training=TrainingConfig(
                 method=t.get("method", "qlora"),
+                task=t.get("task", "sft"),
                 epochs=t.get("epochs", 3),
                 batch_size=t.get("batch_size", 4),
                 grad_accum=t.get("grad_accum", 4),
                 learning_rate=t.get("learning_rate", 2e-4),
                 seq_length=t.get("seq_length", 1024),
+                stream_layers=t.get("stream_layers", False),
+                stream_source=t.get("stream_source", "ram"),
             ),
             gate=GateConfig(
                 threshold=g.get("threshold", 0.6),
@@ -102,11 +108,14 @@ class ProjectConfig:
             "model": {"model_id": self.model_id},
             "training": {
                 "method": self.training.method,
+                "task": self.training.task,
                 "epochs": self.training.epochs,
                 "batch_size": self.training.batch_size,
                 "grad_accum": self.training.grad_accum,
                 "learning_rate": self.training.learning_rate,
                 "seq_length": self.training.seq_length,
+                "stream_layers": self.training.stream_layers,
+                "stream_source": self.training.stream_source,
             },
             "gate": {
                 "threshold": self.gate.threshold,
@@ -132,4 +141,4 @@ def load_config(root: Path) -> dict:
     try:
         return yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     except Exception:
-        return {}
+        return {}

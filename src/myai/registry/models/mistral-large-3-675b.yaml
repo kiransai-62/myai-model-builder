@@ -1,0 +1,35 @@
+id: mistral-large-3-675b
+name: Mistral Large 3 675B MoE
+family: Mistral Large
+modality: Text + Vision
+architecture:
+  parameters: 675B
+  type: MoE
+  active_parameters: 45B
+  hidden_size: 8192
+  num_layers: 88
+  context_length: 131072
+hardware:
+  cpu_min_cores: 64
+  ram_min_gb: 512.0
+  minimum_vram_gb: 340.0
+  vram_q4_gb: 340.0
+  vram_fp16_gb: 1350.0
+  storage_gb: 400.0
+  finetune_vram_gb: 512.0
+  training_ram_gb: 768.0
+capabilities:
+  vision: true
+  audio: false
+  tools: true
+  reasoning: true
+training:
+  methods:
+  - LoRA
+  - QLoRA
+source:
+  repository: mistralai/Mistral-Large-3
+license:
+  name: Mistral Research
+recommended_tier: T3
+confidence: 0.99

@@ -13,7 +13,9 @@ from .evaluate_cmd import evaluate
 from .optimize_cmd import optimize
 from .auto_cmd import auto
 from .status_cmd import status
-
+from .ship_cmd import ship
+from .merge_cmd import merge
+from .reward_cmd import reward_app
 from .runs_cmd import list_runs, info as run_info, best as runs_best
 
 app = typer.Typer(help="MYAI: Local-first AI model builder", no_args_is_help=True)
@@ -25,6 +27,8 @@ app.command("recommend")(recommend)
 app.command("train")(train)
 app.command("optimize")(optimize)
 app.command("export")(export)
+app.command("ship")(ship)
+app.command("merge")(merge)
 app.command("ask")(ask)
 app.command("serve")(serve)
 app.command("evaluate")(evaluate)
@@ -59,12 +63,13 @@ index_app.command("add")(add_document)
 index_app.command("list")(list_indexes)
 app.add_typer(index_app, name="index")
 
-
 runs_app = typer.Typer(help="Training run provenance")
 runs_app.command("list")(list_runs)
 runs_app.command("info")(run_info)
 runs_app.command("best")(runs_best)
 app.add_typer(runs_app, name="runs")
+
+app.add_typer(reward_app, name="reward")
 
 if __name__ == "__main__":
     app()

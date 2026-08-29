@@ -21,6 +21,8 @@ class TaskType(str, Enum):
     CODE = "code"
     CLASSIFICATION = "classification"
     SUMMARIZATION = "summarization"
+    REASONING = "reasoning"
+    EXTRACTION = "extraction"
 
     @classmethod
     def from_str(cls, val: str) -> "TaskType":

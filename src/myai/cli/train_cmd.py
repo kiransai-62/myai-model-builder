@@ -29,9 +29,15 @@ def train(
     auto: bool = typer.Option(False, "--auto", "-a", help="Launch autonomous Goal-to-Deployment build (Phase 15)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview autonomous plan without training"),
     opt_iters: int = typer.Option(2, "--opt-iters", help="Maximum optimizer rounds in auto mode"),
+    stream_layers: bool = typer.Option(False, "--stream-layers", help="Enable Exact Layer Streaming for 4GB VRAM training"),
+    task: str = typer.Option("sft", "--task", help="Training task mode (sft, dpo, orpo, simpo, kto)"),
 ):
     root = require_project_root()
     cfg = ProjectConfig.load(root)
+    if stream_layers:
+        cfg.training.stream_layers = True
+    if task:
+        cfg.training.task = task
     home = ensure_home()
     selection_mode = "user_selected"
 
@@ -127,11 +133,9 @@ def train(
         spec = next(m for m in models if m.id == cfg.model_id)
         selection_mode = "user_selected"
         console.print(f"Active Model: [bold]{spec.name}[/bold] ({spec.id})\n", highlight=False)
-    else:
-        fitting = [m for m in models if not hw.vram_gb or hw.vram_gb >= m.vram_min]
-        if not fitting:
-            fitting = models  # Fallback for CPU tier
-        rec = max(fitting, key=lambda m: m.parameters_billions)
+        from ..models.recommender import recommend_models
+        recs = recommend_models(hw, report, models, goal=cfg.goal)
+        rec = recs[0].model if recs else models[0]
         selection_mode = "recommended"
         console.print("\n[bold cyan]MODEL AUTO-RECOMMENDATION[/bold cyan]")
         console.print(f"Recommended model: {rec.name} ({rec.id})", highlight=False)
@@ -218,6 +222,8 @@ def train(
         "home": home,
         "root": root,
         "selection_mode": selection_mode,
+        "stream_layers": cfg.training.stream_layers,
+        "task": cfg.training.task,
         "budget_gb": budget.additional_gb,
         "resume_ckpt": resume_ckpt
     })

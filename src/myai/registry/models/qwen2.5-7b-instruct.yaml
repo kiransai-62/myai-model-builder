@@ -1,0 +1,12 @@
+id: qwen2.5-7b-instruct
+name: Qwen 2.5 7B Instruct
+source:
+  repository: Qwen/Qwen2.5-7B-Instruct
+architecture:
+  parameters: 7B
+hardware:
+  minimum_vram_gb: 4
+training:
+  methods: [lora, qlora, layer_streaming]
+license:
+  name: Apache 2.0

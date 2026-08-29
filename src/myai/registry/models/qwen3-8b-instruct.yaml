@@ -1,0 +1,37 @@
+id: qwen3-8b-instruct
+name: Qwen3 8B Instruct
+family: Qwen3
+modality: Text
+architecture:
+  parameters: 8B
+  type: Dense
+  hidden_size: 4096
+  num_layers: 32
+  context_length: 131072
+hardware:
+  cpu_min_cores: 6
+  ram_min_gb: 16.0
+  minimum_vram_gb: 8.0
+  vram_q4_gb: 7.0
+  vram_fp16_gb: 18.0
+  storage_gb: 10.0
+  finetune_vram_gb: 12.0
+  training_ram_gb: 32.0
+capabilities:
+  vision: false
+  audio: false
+  tools: true
+  reasoning: true
+training:
+  methods:
+  - LoRA
+  - QLoRA
+  - layer_streaming
+  - dpo
+  - simpo
+source:
+  repository: Qwen/Qwen3-8B-Instruct
+license:
+  name: Apache 2.0
+recommended_tier: T2
+confidence: 0.98

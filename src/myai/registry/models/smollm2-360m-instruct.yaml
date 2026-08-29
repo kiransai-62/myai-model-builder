@@ -1,0 +1,34 @@
+id: smollm2-360m-instruct
+name: SmolLM2 360M Instruct
+family: SmolLM2
+modality: Text
+architecture:
+  parameters: 360M
+  type: Dense
+  hidden_size: 960
+  num_layers: 32
+  context_length: 2048
+hardware:
+  cpu_min_cores: 2
+  ram_min_gb: 4.0
+  minimum_vram_gb: 2.0
+  vram_q4_gb: 1.0
+  vram_fp16_gb: 2.0
+  storage_gb: 1.5
+  finetune_vram_gb: 2.5
+  training_ram_gb: 6.0
+capabilities:
+  vision: false
+  audio: false
+  tools: true
+  reasoning: false
+training:
+  methods:
+  - LoRA
+  - QLoRA
+source:
+  repository: HuggingFaceTB/SmolLM2-360M-Instruct
+license:
+  name: Apache 2.0
+recommended_tier: T0
+confidence: 0.98

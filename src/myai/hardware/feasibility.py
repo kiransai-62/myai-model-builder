@@ -18,6 +18,8 @@ class TrainingConfig:
     batch_size: int = 1
     grad_accum: int = 8
     grad_checkpointing: bool = True
+    stream_layers: bool = False        # Exact Layer Streaming (Soup feature)
+    stream_source: str = "ram"         # "ram" or "disk"
     target_modules: List[str] = field(
         default_factory=lambda: [
             "q_proj", "k_proj", "v_proj", "o_proj",
@@ -52,7 +54,7 @@ def estimate_vram_gb(model: Any, cfg: TrainingConfig) -> float:
     """
     Computes an empirical estimate of peak VRAM during fine-tuning (GB).
     Includes:
-      1. Base model weights (quantized or full precision)
+      1. Base model weights (quantized, full precision, or layer-streamed buffer)
       2. KV cache and forward activation memory (with/without gradient checkpointing)
       3. LoRA adapter parameters and optimizer states (AdamW)
       4. PyTorch CUDA allocator buffer / workspace headroom (~15%)
@@ -62,7 +64,11 @@ def estimate_vram_gb(model: Any, cfg: TrainingConfig) -> float:
     num_layers = _get_model_attribute(model, "num_layers", 32)
 
     # 1. Base weights in GB
-    if cfg.quantization == "4bit":
+    if getattr(cfg, "stream_layers", False):
+        # Layer Streaming: only 2 active buffer layers kept in VRAM
+        layer_size_gb = (params_b * 0.55) / max(1, num_layers)
+        weight_gb = layer_size_gb * 2.0
+    elif cfg.quantization == "4bit":
         weight_gb = params_b * 0.55
     elif cfg.quantization == "8bit":
         weight_gb = params_b * 1.05
@@ -70,8 +76,6 @@ def estimate_vram_gb(model: Any, cfg: TrainingConfig) -> float:
         weight_gb = params_b * 2.05
 
     # 2. Activation memory (GB)
-    # Standard transformer activation ~ (num_layers * seq_len * hidden_size * batch_size * bytes)
-    # Gradient checkpointing reduces activation memory by ~75-80%
     base_act_bytes = num_layers * cfg.seq_len * hidden_size * cfg.batch_size * 2
     if cfg.grad_checkpointing:
         act_gb = (base_act_bytes * 0.25) / 1e9
@@ -79,10 +83,8 @@ def estimate_vram_gb(model: Any, cfg: TrainingConfig) -> float:
         act_gb = (base_act_bytes * 1.2) / 1e9
 
     # 3. LoRA trainable parameters & AdamW optimizer states
-    # Trainable params per layer ~ 2 * lora_rank * hidden_size * num_target_modules
     num_targets = len(cfg.target_modules)
     trainable_params = num_layers * num_targets * 2 * cfg.lora_rank * hidden_size
-    # AdamW maintains fp32 master weights (4 bytes), momentum (4 bytes), variance (4 bytes), grad (2 bytes) = 14 bytes/param
     lora_opt_gb = (trainable_params * 14) / 1e9
 
     # 4. Context & KV Cache memory
@@ -111,6 +113,7 @@ def check_feasibility(
     data: Optional[Any] = None,
     goal: Optional[Any] = None,
     cfg: Optional[TrainingConfig] = None,
+    allow_layer_streaming: bool = False,
 ) -> FeasibilityReport:
     """Explicit Dual Gate (Hardware Fit × Data Fit) validation."""
     if cfg is None:
@@ -130,7 +133,27 @@ def check_feasibility(
     if has_gpu:
         hardware_fit = est_vram <= (vram_gb * 0.95)
         if not hardware_fit:
-            warnings.append(f"Estimated VRAM ({est_vram} GB) exceeds available VRAM ({vram_gb} GB).")
+            if allow_layer_streaming or getattr(cfg, "stream_layers", False):
+                stream_cfg = TrainingConfig(
+                    quantization=cfg.quantization,
+                    lora_rank=cfg.lora_rank,
+                    lora_alpha=cfg.lora_alpha,
+                    seq_len=cfg.seq_len,
+                    batch_size=cfg.batch_size,
+                    grad_accum=cfg.grad_accum,
+                    grad_checkpointing=cfg.grad_checkpointing,
+                    stream_layers=True,
+                )
+                stream_est_vram = estimate_vram_gb(model, stream_cfg)
+                if stream_est_vram <= (vram_gb * 0.95):
+                    cfg = stream_cfg
+                    est_vram = stream_est_vram
+                    hardware_fit = True
+                    reasons.append(f"Layer Streaming activated: {est_vram} GB estimated / {vram_gb} GB available (8B model on {vram_gb:.1f}GB GPU).")
+                else:
+                    warnings.append(f"Estimated VRAM ({est_vram} GB) exceeds available VRAM ({vram_gb} GB).")
+            else:
+                warnings.append(f"Estimated VRAM ({est_vram} GB) exceeds available VRAM ({vram_gb} GB).")
         else:
             reasons.append(f"VRAM budget satisfied: {est_vram} GB estimated / {vram_gb} GB available.")
     else:
@@ -187,4 +210,3 @@ def run_feasibility(hw: Any, model: Any, data: Optional[Any] = None) -> Feasibil
         reasoning=reasoning_text,
         report=report,
     )
-
