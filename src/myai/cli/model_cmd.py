@@ -18,18 +18,41 @@ def list_models():
     models = get_registry_models()
     hw = detect_hardware()
     
-    console.print("\n[bold cyan]AVAILABLE BASE MODELS[/bold cyan]\n")
-    table = Table(title="Model Registry")
-    table.add_column("ID", style="cyan")
-    table.add_column("Name")
-    table.add_column("Size")
-    table.add_column("Min VRAM")
-    table.add_column("Your VRAM")
+    console.print("\n[bold cyan] MYAI COMPREHENSIVE MODEL REGISTRY[/bold cyan]\n")
+    table = Table(title="Model Registry — Base Model Catalog (0.1B to 675B+)")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Type")
+    table.add_column("Params")
+    table.add_column("CPU")
+    table.add_column("Inf VRAM (Q4)")
+    table.add_column("Train VRAM")
+    table.add_column("Status")
     
     for m in models:
-        your_vram = f"{hw.vram_gb} GB" if hw.vram_gb > 0 else "N/A"
-        status = "[green]✓[/green]" if hw.vram_gb >= m.vram_min else "[red]✗[/red]"
-        table.add_row(m.id, m.name, m.parameters, f"{m.vram_min} GB", f"{your_vram} {status}")
+        arch_type = "MoE" if m.architecture == "MoE" else "Dense"
+        params_display = f"{m.active_parameters}/{m.parameters}" if m.architecture == "MoE" else m.parameters
+        cpu_display = f"{m.cpu.min_cores}c"
+        
+        has_gpu = hw.vram_gb > 0
+        fits_resident = m.vram_min <= (hw.vram_gb if has_gpu else hw.ram_gb)
+        fits_streaming = has_gpu and hw.vram_gb >= 3.5 and m.params_b <= 8.0 and "layer_streaming" in m.methods
+        
+        if fits_resident:
+            status = "[green]✓ Native[/green]"
+        elif fits_streaming:
+            status = "[blue]🌊 Streaming[/blue]"
+        else:
+            status = "[red]✗ High VRAM[/red]"
+            
+        table.add_row(
+            m.id,
+            arch_type,
+            params_display,
+            cpu_display,
+            f"~{m.inference.q4_vram_gb} GB",
+            f"~{m.training.lora_vram_gb} GB",
+            status,
+        )
         
     console.print(table)
 

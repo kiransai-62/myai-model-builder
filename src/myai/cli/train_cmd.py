@@ -133,6 +133,7 @@ def train(
         spec = next(m for m in models if m.id == cfg.model_id)
         selection_mode = "user_selected"
         console.print(f"Active Model: [bold]{spec.name}[/bold] ({spec.id})\n", highlight=False)
+    else:
         from ..models.recommender import recommend_models
         recs = recommend_models(hw, report, models, goal=cfg.goal)
         rec = recs[0].model if recs else models[0]

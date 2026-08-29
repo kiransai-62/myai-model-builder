@@ -1,12 +1,59 @@
+"""
+MYAI Hardware Intelligence & Model Recommendation Engine (15-Point Matrix).
+
+Evaluates models against:
+1. System Compatibility (8 factors: VRAM, RAM, GPU Compute, CPU, Storage, Throughput, Context, Runtime)
+2. Dataset Fit (Token volume vs. parameter capacity)
+3. Task Fit (Code, Reasoning, Chat, Extraction, Domain QA)
+4. Training Fit (LoRA, QLoRA, Layer Streaming, DPO)
+5. Deployment Fit (Edge, Fast latency, Cloud server)
+
+Assigns 4-tier verdicts (RECOMMENDED, COMPATIBLE, POSSIBLE, UNSUPPORTED) with
+explainable fit breakdowns, dynamic context profiles, and alternative model suggestions.
+"""
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, List, Dict, Optional, Tuple
 from ..hardware.detector import detect_hardware, HardwareReport
+from ..hardware.memory_calc import (
+    calculate_dynamic_memory_profile,
+    evaluate_context_profiles,
+    DynamicMemoryProfile,
+)
 from ..data.validator import validate_data, DataReport
 from .registry import get_registry_models
 from .schema import RegistryModel
 from ..core.config import ProjectConfig
 from ..core.goal import GoalProfile, TaskType
+from ..registry.scorer import (
+    SystemCompatibilityScorer,
+    ModelRecommenderScorer,
+    SystemCompatibilityBreakdown,
+    RecommendationScoreResult,
+)
+
+
+class CompatibilityVerdict(str, Enum):
+    RECOMMENDED = "RECOMMENDED"    # ⭐ Ample headroom, optimal fit
+    COMPATIBLE = "COMPATIBLE"      # ✅ Meets minimum specs stably
+    POSSIBLE = "POSSIBLE"          # ⚠️ Operable via layer streaming or low context
+    UNSUPPORTED = "UNSUPPORTED"    # ❌ Hardware insufficient
+
+
+# Backward compatibility aliases
+HardwareFitBreakdown = SystemCompatibilityBreakdown
+
+
+@dataclass
+class ExplainableFitScores:
+    hardware_fit: float = 100.0
+    dataset_fit: float = 100.0
+    task_fit: float = 100.0
+    training_fit: float = 100.0
+    deployment_fit: float = 100.0
+    overall_composite: float = 100.0
+    confidence: float = 0.95
 
 
 @dataclass
@@ -15,126 +62,165 @@ class ModelRecommendation:
     score: int
     method: str
     fits_vram: bool
-    reasons: list[str] = field(default_factory=list)
+    verdict: CompatibilityVerdict = CompatibilityVerdict.COMPATIBLE
+    reasons: List[str] = field(default_factory=list)
     confidence: float = 0.95
+    predicted_tokens_per_sec: float = 30.0
+    fit_breakdown: Optional[ExplainableFitScores] = None
+    hw_breakdown: Optional[SystemCompatibilityBreakdown] = None
+    dynamic_memory: Optional[DynamicMemoryProfile] = None
+    recommended_context: int = 4096
+    context_profiles: Dict[int, Tuple[float, str]] = field(default_factory=dict)
+    why_this_model: List[str] = field(default_factory=list)
+    alternative_model: Optional["ModelRecommendation"] = None
+
+    @property
+    def verdict_badge(self) -> str:
+        if self.verdict == CompatibilityVerdict.RECOMMENDED:
+            return "[bold green]⭐ RECOMMENDED[/bold green]"
+        elif self.verdict == CompatibilityVerdict.COMPATIBLE:
+            return "[green]✅ COMPATIBLE[/green]"
+        elif self.verdict == CompatibilityVerdict.POSSIBLE:
+            return "[yellow]⚠️ POSSIBLE[/yellow]"
+        return "[red]❌ UNSUPPORTED[/red]"
+
+
+def compute_8_factor_hardware_score(
+    hardware: HardwareReport,
+    model: RegistryModel,
+    mem_profile: DynamicMemoryProfile,
+) -> Tuple[float, SystemCompatibilityBreakdown]:
+    """Computes weighted 8-factor system compatibility score."""
+    return SystemCompatibilityScorer.score(hardware, model, mem_profile)
 
 
 def recommend_models(
     hardware: HardwareReport,
     data_report: DataReport,
-    models: list[RegistryModel] | None = None,
-    goal: GoalProfile | None = None,
-) -> list[ModelRecommendation]:
-    """Score and rank registered models based on hardware, dataset, and goal characteristics."""
+    models: Optional[List[RegistryModel]] = None,
+    goal: Optional[GoalProfile] = None,
+) -> List[ModelRecommendation]:
+    """
+    Score and rank registered models based on 8-factor system compatibility,
+    dataset alignment, goal characteristics, and explainability breakdown.
+    """
     if models is None:
         models = get_registry_models()
 
-    recommendations: list[ModelRecommendation] = []
-    
-    # Available effective VRAM (0 means CPU/integrated, or not detected)
+    recommendations: List[ModelRecommendation] = []
     has_gpu = hardware.vram_gb > 0
-    effective_vram = hardware.vram_gb if has_gpu else (hardware.ram_gb / 2.0)
 
     for m in models:
-        score = 100
-        reasons = []
-        
-        # Dual-gate check: Resident VRAM vs Layer Streaming vs CPU
+        # 1. Training method determination
         fits_resident = m.vram_min <= (hardware.vram_gb if has_gpu else hardware.ram_gb)
         fits_streaming = has_gpu and hardware.vram_gb >= 3.5 and m.params_b <= 8.0 and "layer_streaming" in m.methods
         fits_vram = fits_resident or fits_streaming
-        
-        # Determine training method recommendation
+
         if not has_gpu:
             method = "LoRA"
-            if hardware.ram_gb >= m.vram_min:
-                reasons.append(f"Runs on CPU with {hardware.ram_gb} GB System RAM")
-            else:
-                reasons.append(f"Requires ~{m.vram_min} GB (Current: {hardware.ram_gb} GB)")
         elif hardware.vram_gb >= m.vram_min:
             method = "QLoRA"
-            reasons.append(f"Fits in {hardware.vram_gb} GB VRAM with QLoRA")
         elif fits_streaming:
             method = "Exact Layer Streaming"
-            reasons.append(f"Fits in {hardware.vram_gb} GB VRAM with Layer Streaming (~3.32 GB peak)")
         else:
             method = "QLoRA"
-            reasons.append(f"Requires ~{m.vram_min} GB (Current: {hardware.vram_gb} GB)")
 
-        # Penalty for hardware resource mismatch
-        if not fits_vram:
-            score -= 50
-            reasons.append("Hardware resources below minimum recommendation")
+        # 2. Dynamic Memory & Multi-Tier Context Profile Calculation
+        mem_profile = calculate_dynamic_memory_profile(
+            params_total_b=m.parameters_billions,
+            params_active_b=m.active_parameters_billions,
+            num_layers=m.num_layers,
+            hidden_size=m.hidden_size,
+            quant_format="INT4",
+            context_length=min(m.context_length, 4096),
+            batch_size=2,
+            is_training=True,
+            training_method="layer_streaming" if method == "Exact Layer Streaming" else method.lower(),
+            available_vram_gb=hardware.vram_gb,
+            available_ram_gb=hardware.ram_gb,
+            gpu_tier=hardware.tier,
+        )
+
+        # 3. Multi-Dimension Recommendation Scoring
+        score_res: RecommendationScoreResult = ModelRecommenderScorer.score_model(
+            hardware=hardware,
+            data_report=data_report,
+            model=m,
+            mem_profile=mem_profile,
+            goal=goal,
+            fits_vram=fits_vram,
+        )
+
+        # 4. 4-Tier Verdict Assignment
+        if not fits_vram or score_res.system_compatibility < 40.0:
+            verdict = CompatibilityVerdict.UNSUPPORTED
         elif fits_streaming and not fits_resident:
-            # Slight modifier for streaming overhead vs resident
-            score -= 5
-            reasons.append("Layer streaming activated for low-VRAM GPU")
+            verdict = CompatibilityVerdict.POSSIBLE
+        elif score_res.overall_recommendation >= 85.0 and mem_profile.headroom_gb >= 1.0:
+            verdict = CompatibilityVerdict.RECOMMENDED
+        elif score_res.overall_recommendation >= 60.0:
+            verdict = CompatibilityVerdict.COMPATIBLE
+        else:
+            verdict = CompatibilityVerdict.POSSIBLE
 
-        # Size appropriateness based on tokens
-        # For small datasets (< 100k tokens), smaller models (<= 3B) prevent overfitting and train faster
-        if data_report.tokens_approx < 100_000:
-            if m.params_b <= 1.5:
-                score += 10
-                reasons.append("Optimal parameter size for compact dataset")
-            elif m.params_b >= 7.0:
-                score -= 20
-                reasons.append("Large model for small dataset size (risk of overfitting)")
-        elif data_report.tokens_approx > 1_000_000:
-            if m.params_b >= 3.0 and m.params_b <= 14.0:
-                score += 10
-                reasons.append("High parameter capacity suited for large dataset")
+        fit_breakdown = ExplainableFitScores(
+            hardware_fit=score_res.system_compatibility,
+            dataset_fit=score_res.dataset_fit,
+            task_fit=score_res.task_fit,
+            training_fit=score_res.training_fit,
+            deployment_fit=score_res.deployment_fit,
+            overall_composite=score_res.overall_recommendation,
+            confidence=score_res.confidence,
+        )
 
-        # Hardware Tier boost
-        if hardware.tier in ("T2", "T3") and m.params_b in (3.0, 7.0, 8.0, 14.0):
-            score += 5
-        elif hardware.tier in ("T0", "T1") and m.params_b <= 3.0:
-            score += 5
+        # "Why this model?" explainability rationale
+        why_bullets: List[str] = []
+        if has_gpu and fits_resident:
+            why_bullets.append(f"Fits in {hardware.vram_gb} GB VRAM comfortably with {method}")
+        elif has_gpu and fits_streaming:
+            why_bullets.append(f"Operates in 4GB VRAM via Exact Layer Streaming (~3.32 GB peak)")
+        elif not has_gpu:
+            why_bullets.append(f"Runs on CPU with {hardware.ram_gb} GB System RAM")
 
-        # Goal-driven adjustments
-        if goal is not None:
-            if goal.task == TaskType.CODE:
-                if "coder" in m.id.lower() or "code" in m.name.lower() or "phi-4" in m.id.lower():
-                    score += 25
-                    reasons.append("Optimized for code synthesis and programming tasks")
-                else:
-                    score -= 10
-                    reasons.append("General base model; code-specialized model preferred")
-            elif goal.task in (TaskType.CHAT, TaskType.DOMAIN_QA):
-                if "instruct" in m.id.lower() or "chat" in m.id.lower():
-                    score += 15
-                    reasons.append("Instruction-tuned architecture matches conversational/Q&A goal")
-            elif goal.task == TaskType.REASONING:
-                if m.has_reasoning or "distill" in m.id.lower() or "r1" in m.id.lower() or "phi" in m.id.lower():
-                    score += 20
-                    reasons.append("High-depth reasoning architecture matches analytical goal")
-            
-            if goal.target_deployment == "edge":
-                if m.parameters_billions <= 1.5:
-                    score += 15
-                    reasons.append("Lightweight footprint ideal for edge deployment")
-                elif m.parameters_billions >= 7.0:
-                    score -= 25
-                    reasons.append("Exceeds optimal parameters for edge deployment")
-                    
-            if goal.latency_priority == "fast":
-                if m.parameters_billions <= 3.0:
-                    score += 10
-                    reasons.append("Low parameter latency matches fast response priority")
+        why_bullets.extend(score_res.reasons[:3])
+        if mem_profile.estimated_tokens_per_sec >= 20.0:
+            why_bullets.append(f"Fast inference throughput (~{mem_profile.estimated_tokens_per_sec} tok/s)")
 
-        # Normalize score
-        score = max(0, min(100, score))
         recommendations.append(
             ModelRecommendation(
                 model=m,
-                score=score,
+                score=int(score_res.overall_recommendation),
                 method=method,
                 fits_vram=fits_vram,
-                reasons=reasons,
-                confidence=m.confidence,
+                verdict=verdict,
+                reasons=score_res.reasons,
+                confidence=score_res.confidence,
+                predicted_tokens_per_sec=mem_profile.estimated_tokens_per_sec,
+                fit_breakdown=fit_breakdown,
+                hw_breakdown=score_res.system_breakdown,
+                dynamic_memory=mem_profile,
+                recommended_context=mem_profile.recommended_context,
+                context_profiles=mem_profile.context_profiles,
+                why_this_model=why_bullets,
             )
         )
 
-    recommendations.sort(key=lambda x: (x.fits_vram, x.score), reverse=True)
+    # Sort primarily by: verdict precedence (RECOMMENDED > COMPATIBLE > POSSIBLE > UNSUPPORTED) then composite score
+    verdict_rank = {
+        CompatibilityVerdict.RECOMMENDED: 4,
+        CompatibilityVerdict.COMPATIBLE: 3,
+        CompatibilityVerdict.POSSIBLE: 2,
+        CompatibilityVerdict.UNSUPPORTED: 1,
+    }
+    recommendations.sort(key=lambda x: (x.fits_vram, verdict_rank.get(x.verdict, 0), x.score), reverse=True)
+
+    # Attach alternative model suggestion to top recommendation
+    if len(recommendations) > 1:
+        top = recommendations[0]
+        # Find first viable alternative (e.g. next size up or down)
+        alt = next((r for r in recommendations[1:] if r.fits_vram), recommendations[1])
+        top.alternative_model = alt
+
     return recommendations
 
 
@@ -147,15 +233,22 @@ CATALOG = get_registry_models()
 class RecommendationResult:
     model: RegistryModel
     score: int
-    reasoning: list[str] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
+    reasoning: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    verdict: CompatibilityVerdict = CompatibilityVerdict.COMPATIBLE
+    fit_breakdown: Optional[ExplainableFitScores] = None
+    hw_breakdown: Optional[SystemCompatibilityBreakdown] = None
+    predicted_tok_per_sec: float = 30.0
+    recommended_context: int = 4096
+    why_this_model: List[str] = field(default_factory=list)
+    alternative_model: Optional[ModelRecommendation] = None
 
 
 def recommend_model(
     hardware: HardwareReport,
     goal: GoalProfile,
     data_summary: Any = None,
-    models: list[RegistryModel] | None = None,
+    models: Optional[List[RegistryModel]] = None,
 ) -> RecommendationResult:
     global CATALOG
     if models is None:
@@ -179,17 +272,29 @@ def recommend_model(
             "llama-3-8b-instruct", "Llama 3 8B Instruct", "8B", 8.0, ["QLoRA"],
             "meta-llama/Meta-Llama-3-8B-Instruct", "Llama-3"
         )
-        return RecommendationResult(model=default_m, score=50, reasoning=["Default fallback model selected."])
+        return RecommendationResult(
+            model=default_m, score=50, reasoning=["Default fallback model selected."],
+            verdict=CompatibilityVerdict.COMPATIBLE
+        )
     top = recs[0]
     return RecommendationResult(
         model=top.model,
         score=top.score,
         reasoning=top.reasons,
-        warnings=[r for r in top.reasons if "below" in r.lower() or "exceeds" in r.lower()]
+        warnings=[r for r in top.reasons if "below" in r.lower() or "exceeds" in r.lower()],
+        verdict=top.verdict,
+        fit_breakdown=top.fit_breakdown,
+        hw_breakdown=top.hw_breakdown,
+        predicted_tok_per_sec=top.predicted_tokens_per_sec,
+        recommended_context=top.recommended_context,
+        why_this_model=top.why_this_model,
+        alternative_model=top.alternative_model,
     )
 
 
-def get_top_recommendation(root: Path, cfg: ProjectConfig) -> tuple[ModelRecommendation | None, HardwareReport, DataReport]:
+def get_top_recommendation(
+    root: Path, cfg: ProjectConfig
+) -> Tuple[Optional[ModelRecommendation], HardwareReport, DataReport]:
     """Inspect project dataset, system hardware, and goal profile, returning top recommendation."""
     data_dir = resolve_dataset_source(root, cfg)
     report = validate_data(data_dir)

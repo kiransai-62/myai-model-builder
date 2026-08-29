@@ -1,0 +1,65 @@
+id: qwen3-4b-instruct
+name: Qwen3 4B Instruct
+family: Qwen3
+modality: Text
+architecture:
+  parameters: 4B
+  type: Dense
+  hidden_size: 2560
+  num_layers: 36
+  context_length: 32768
+cpu:
+  min_cores: 4
+  rec_cores: 8
+  architecture: x86_64
+  instruction_sets:
+  - AVX2
+  est_cpu_tok_per_sec: 14.0
+inference:
+  q4_vram_gb: 5.0
+  q8_vram_gb: 7.0
+  fp16_vram_gb: 10.0
+  ram_gb: 12.0
+  est_tokens_per_sec: 38.0
+training:
+  lora_vram_gb: 10.0
+  qlora_vram_gb: 6.5
+  layer_streaming_vram_gb: 3.0
+  training_ram_gb: 16.0
+  download_size_gb: 7.5
+  runtime_storage_gb: 9.0
+  workspace_storage_gb: 18.0
+  methods:
+  - LoRA
+  - QLoRA
+  - layer_streaming
+multi_gpu:
+  min_count: 1
+  rec_count: 1
+  vram_per_gpu_gb: 8.0
+  total_vram_gb: 8.0
+  interconnect: PCIe
+  parallelism: None
+capabilities:
+  tool_calling: true
+  structured_json: true
+  vision: false
+  audio: false
+  reasoning: true
+quantizations:
+- FP16
+- INT8
+- INT4
+- GGUF_Q4_K_M
+- GGUF_Q8_0
+tasks:
+- chat
+- code
+- domain_qa
+- reasoning
+source:
+  repository: Qwen/Qwen3-4B-Instruct
+license:
+  name: Apache 2.0
+recommended_tier: T1
+confidence: 0.97

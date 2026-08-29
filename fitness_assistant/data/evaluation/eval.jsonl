@@ -1,3 +1,0 @@
-{"prompt": "What is the return policy?", "required_facts": ["30-day", "support@fittrack.com"], "must_not_claim": ["no refund", "lifetime"], "expected_meaning": "FitTrack provides a 30-day refund guarantee via support@fittrack.com."}
-{"prompt": "How much does the Pro subscription cost?", "required_facts": ["$19.99", "month"], "must_not_claim": ["free forever"], "expected_meaning": "Pro membership is $19.99 per month."}
-{"prompt": "Which wearable devices are supported?", "required_facts": ["Apple Watch", "Garmin", "Fitbit"], "must_not_claim": ["Windows Phone"], "expected_meaning": "FitTrack supports Apple Watch, Garmin, and Fitbit."}

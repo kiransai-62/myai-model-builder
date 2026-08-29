@@ -1,12 +1,8 @@
-from pathlib import Path
-from importlib import resources
+from typing import List
 from .schema import RegistryModel
+from ..registry.loader import load_registry_models
 
-def get_registry_models() -> list[RegistryModel]:
-    models = []
-    # In a real package, use importlib.resources. For local dev, we find the file relative to this script.
-    registry_dir = Path(__file__).parent.parent / "registry" / "models"
-    if registry_dir.exists():
-        for f in registry_dir.glob("*.yaml"):
-            models.append(RegistryModel.from_yaml(f))
-    return models
+
+def get_registry_models() -> List[RegistryModel]:
+    """Retrieves all registered models from the hierarchical model registry."""
+    return load_registry_models()

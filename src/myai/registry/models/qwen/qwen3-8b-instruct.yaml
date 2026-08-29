@@ -1,0 +1,67 @@
+id: qwen3-8b-instruct
+name: Qwen3 8B Instruct
+family: Qwen3
+modality: Text
+architecture:
+  parameters: 8B
+  type: Dense
+  hidden_size: 4096
+  num_layers: 32
+  context_length: 131072
+cpu:
+  min_cores: 6
+  rec_cores: 12
+  architecture: x86_64
+  instruction_sets:
+  - AVX2
+  est_cpu_tok_per_sec: 9.5
+inference:
+  q4_vram_gb: 7.0
+  q8_vram_gb: 10.0
+  fp16_vram_gb: 18.0
+  ram_gb: 16.0
+  est_tokens_per_sec: 28.0
+training:
+  lora_vram_gb: 16.5
+  qlora_vram_gb: 9.8
+  layer_streaming_vram_gb: 3.32
+  training_ram_gb: 32.0
+  download_size_gb: 15.0
+  runtime_storage_gb: 18.0
+  workspace_storage_gb: 40.0
+  methods:
+  - LoRA
+  - QLoRA
+  - layer_streaming
+  - dpo
+  - simpo
+multi_gpu:
+  min_count: 1
+  rec_count: 1
+  vram_per_gpu_gb: 12.0
+  total_vram_gb: 12.0
+  interconnect: PCIe
+  parallelism: None
+capabilities:
+  tool_calling: true
+  structured_json: true
+  vision: false
+  audio: false
+  reasoning: true
+quantizations:
+- FP16
+- INT8
+- INT4
+- GGUF_Q4_K_M
+- GGUF_Q8_0
+tasks:
+- chat
+- code
+- domain_qa
+- reasoning
+source:
+  repository: Qwen/Qwen3-8B-Instruct
+license:
+  name: Apache 2.0
+recommended_tier: T2
+confidence: 0.98

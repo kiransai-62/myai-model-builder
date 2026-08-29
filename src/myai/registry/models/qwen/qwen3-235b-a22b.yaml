@@ -1,0 +1,65 @@
+id: qwen3-235b-a22b
+name: Qwen3 235B-A22B MoE
+family: Qwen3 MoE
+modality: Text
+architecture:
+  parameters: 235B
+  type: MoE
+  active_parameters: 22B
+  num_experts: 128
+  num_active_experts: 8
+  hidden_size: 6144
+  num_layers: 64
+  context_length: 131072
+cpu:
+  min_cores: 32
+  rec_cores: 64
+  architecture: x86_64
+  instruction_sets:
+  - AVX-512
+  est_cpu_tok_per_sec: 0.8
+inference:
+  q4_vram_gb: 140.0
+  q8_vram_gb: 250.0
+  fp16_vram_gb: 470.0
+  ram_gb: 256.0
+  est_tokens_per_sec: 8.0
+training:
+  lora_vram_gb: 280.0
+  qlora_vram_gb: 180.0
+  layer_streaming_vram_gb: 25.0
+  training_ram_gb: 512.0
+  download_size_gb: 440.0
+  runtime_storage_gb: 500.0
+  workspace_storage_gb: 1100.0
+  methods:
+  - LoRA
+  - QLoRA
+multi_gpu:
+  min_count: 4
+  rec_count: 8
+  vram_per_gpu_gb: 80.0
+  total_vram_gb: 320.0
+  interconnect: NVLink
+  parallelism: FSDP
+capabilities:
+  tool_calling: true
+  structured_json: true
+  vision: false
+  audio: false
+  reasoning: true
+quantizations:
+- FP16
+- INT8
+- INT4
+- GGUF_Q4_K_M
+tasks:
+- chat
+- code
+- reasoning
+source:
+  repository: Qwen/Qwen3-235B-A22B
+license:
+  name: Apache 2.0
+recommended_tier: T3
+confidence: 0.98

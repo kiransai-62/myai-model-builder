@@ -51,7 +51,7 @@ myai = "myai.cli.main:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-myai = ["registry/models/*.yaml"]
+myai = ["registry/models/**/*.yaml", "registry/models/*.yaml"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests"]

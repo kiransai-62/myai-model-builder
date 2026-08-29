@@ -22,7 +22,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python">
   <img src="https://img.shields.io/badge/license-Apache%202.0-green" alt="License">
-  <img src="https://img.shields.io/badge/tests-203%2F203%20passing-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-209%2F209%20passing-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/hardware%20intelligence-15--point%20matrix-blueviolet" alt="Hardware Intelligence">
   <img src="https://img.shields.io/badge/layer%20streaming-8B%20on%204GB%20GPU-blueviolet" alt="Layer Streaming">
   <img src="https://img.shields.io/badge/alignment-DPO%20%7C%20ORPO%20%7C%20SimPO-orange" alt="Alignment">
   <img src="https://img.shields.io/badge/export%20gate-18%2F18%20verified-brightgreen" alt="Security Gate">

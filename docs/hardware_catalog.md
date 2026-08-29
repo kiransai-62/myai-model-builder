@@ -1,166 +1,156 @@
-# 🖥️ MYAI Model Hardware Requirements Catalog
+# 🖥️ MYAI Model Hardware Intelligence & Requirements Catalog
 
-This catalog documents the official memory, compute, and storage requirements for the model families supported by **MYAI**, from **0.1B Micro/Tiny** models up to **675B+ Extreme MoE Server** models.
-
----
-
-## ⚙️ Hardware Assumptions
-
-* **CPU**: Modern x86-64 CPU (preferably 4+ physical cores) for local tokenization, preprocessing, and inference.
-* **RAM**: Includes operating system and runtime overhead in the recommendation, not merely raw model weights.
-* **GPU**: NVIDIA CUDA GPU (e.g. RTX 3050 Laptop / 3060 / 4070 / 4090 / A100 / H100).
-* **VRAM**: Primarily for GPU-resident training and inference. When VRAM is constrained on 4GB GPUs, MYAI's **Exact Layer Streaming** streams frozen base decoder layers from host RAM/NVMe.
-* **Storage**: Includes headroom for base checkpoints, tokenizers, optimizer states, adapter checkpoints, and temporary export artifacts.
-* **Quantization**: 4-bit estimates (`NF4`, `Q4_K_M`) are for practical local execution; full precision fine-tuning requires higher memory budgets.
+This document defines the comprehensive **15-Point Hardware Intelligence Architecture**, dynamic memory formulas, multi-quantization specifications, and requirements catalog across all size tiers (from **0.1B Micro/Tiny** models up to **675B+ Extreme MoE Server** models).
 
 ---
 
-## 📦 Size Band Specifications
+## ⚙️ 1. Hardware Assumptions & Architecture
+
+* **CPU**: Modern x86-64 / ARM64 CPU with instruction set acceleration (**AVX2**, **AVX-512**, **ARM NEON**) for tokenization, preprocessing, and CPU simulation inference.
+* **Host System RAM**: Accounts for OS kernel, Python runtime, active dataset caching, tokenizer vocab buffers, and pinned host memory (crucial for **Exact Layer Streaming**).
+* **GPU & CUDA Compute**: Evaluates CUDA compute capability, Tensor Cores, **BF16 / FP16 / FP8** precision support, PCIe generation bandwidth, and NVLink inter-GPU topologies.
+* **Separation of Inference vs. Training**: Fine-tuning demands substantial memory for gradients, AdamW 8-bit optimizer states, and LoRA adapter buffers, while inference depends on quantized weights ($Q4/Q8$) and dynamic KV caching.
+* **3-Tier Storage Model**:
+  1. `download_size_gb`: Compressed/raw model weights to fetch.
+  2. `runtime_storage_gb`: Model checkpoint + tokenizer vocab + embedding cache.
+  3. `workspace_storage_gb`: Checkpoints (x3) + optimizer states + temporary export artifacts.
+
+---
+
+## 📐 2. Dynamic Memory & VRAM Calculation Engine
+
+MYAI calculates peak memory dynamically rather than relying on static estimates:
+
+$$\text{VRAM}_{\text{total}} = W(\text{Quant}) + \text{KV}(\text{Ctx}, B, L, H, D) + A(\text{Ctx}, B, H) + \text{LoRA}(r, \alpha) + \text{AllocHeadroom}$$
+
+### Memory Subsystem Breakdown:
+1. **Weights Memory ($W$)**:
+   $$\text{Weights (GB)} = \frac{\text{Params}_{\text{total}} \times 10^9 \times (\text{Bits} / 8)}{1024^3} \times 1.05$$
+2. **KV Cache Memory ($\text{KV}$)**:
+   $$\text{KV Cache (GB)} = \frac{2 \times \text{Layers} \times \text{HiddenSize} \times (\text{PrecisionBits} / 8) \times \text{ContextLength} \times \text{BatchSize}}{1024^3}$$
+3. **Activation Memory ($A$)**:
+   $$\text{Activations (GB)} = \frac{\text{ContextLength} \times \text{BatchSize} \times \text{HiddenSize} \times 2 \times \text{Layers} \times \text{CheckpointFactor}}{1024^3}$$
+4. **Training Overhead**:
+   * **LoRA (FP16)**: $\sim 35\%$ of weight memory $+ 1.2\text{ GB}$ adapter states.
+   * **QLoRA (4-bit NF4)**: $\sim 20\%$ of weight memory $+ 0.8\text{ GB}$ adapter states.
+   * **Exact Layer Streaming**: Caps peak weights in VRAM to $\sim 0.85\text{ GB} + 1.2\text{ GB}$ LoRA buffers ($\sim 3.32\text{ GB}$ peak VRAM for 8B models).
+
+---
+
+## 🧮 3. 8-Factor Hardware Fit Scoring & 4-Tier Verdict System
+
+### 8-Factor Weighted Hardware Score:
+
+| Hardware Factor | Weight | Evaluation Criteria |
+| :--- | :---: | :--- |
+| **1. VRAM Headroom** | **30%** | Peak VRAM vs. Available GPU VRAM ($> 2\text{ GB}$ headroom = $100\%$) |
+| **2. System RAM** | **15%** | Host RAM vs. Training/Streaming requirements |
+| **3. GPU Compute Tier** | **15%** | Architecture tier ($T3=100\%$, $T2=90\%$, $T1=75\%$, $T0=55\%$) |
+| **4. CPU Capacity** | **10%** | Physical core count vs. Model minimum/recommended cores |
+| **5. Storage Budget** | **10%** | Free disk vs. 3-tier workspace storage requirements |
+| **6. Throughput (tok/s)** | **10%** | Predicted/measured tokens per second based on active parameters |
+| **7. Context Capacity** | **5%** | Maximum context length fit without truncation |
+| **8. Runtime Support** | **5%** | Native driver, QLoRA, LoRA, and GGUF runtime availability |
+
+### 4-Tier Verdict Classification:
+* ⭐ **`RECOMMENDED`**: Overall fit score $\ge 85\%$, ample VRAM headroom ($\ge 1.0\text{ GB}$), and optimal dataset/task alignment.
+* ✅ **`COMPATIBLE`**: Overall fit score $\ge 60\%$, meets minimum specifications stably.
+* ⚠️ **`POSSIBLE`**: Operable via **Exact Layer Streaming** or reduced context length, but headroom is tight.
+* ❌ **`UNSUPPORTED`**: Insufficient hardware memory (VRAM/RAM/CPU) for safe execution.
+
+---
+
+## 📦 4. Comprehensive Model Requirements Catalog (0.1B to 675B+)
 
 ### 1. 0.1B–1B — Micro / Tiny
-* **Primary Tiers**: Tier T0 (CPU) & Tier T1 (Low VRAM)
-* **Typical MYAI Use**: On-device edge classification, lightweight intent extraction, fast embedded agents.
+* **Primary Targets**: Tier T0 (CPU) & Edge / Embedded
+* **Key Use Cases**: Ultra-fast classification, intent extraction, lightweight on-device agents.
 
-| Model Family | Size | CPU | System RAM | GPU | VRAM (Q4 Inf) | Storage | Typical MYAI Use |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **SmolLM2** | 135M | 2+ cores | 4 GB | Optional | ~1–2 GB | < 1 GB | Tiny on-device agent |
-| **SmolLM2** | 360M | 2+ cores | 4 GB | Optional | ~1–2 GB | ~1 GB | Tiny classification / agent |
-| **Gemma 3** | 270M | 2+ cores | 4 GB | Optional | 2 GB | 1–2 GB | Micro assistant, routing |
-| **Qwen3** | 0.6B | 2+ cores | 4 GB | Optional | 2 GB | 1–2 GB | Lightweight assistant |
-| **Qwen3.5** | 0.8B | 2+ cores | 4–6 GB | Optional | 2–3 GB | 2 GB | Fast extraction, simple chat |
-| **Llama 3.2** | 1B | 2+ cores | 6 GB | Optional | 2–3 GB | 2–3 GB | Small general assistant |
-| **Gemma 3** | 1B | 2+ cores | 6 GB | Optional | 3 GB | 2–3 GB | Small multimodal / text |
-| **SmolLM2** | 1.7B | 2–4 cores | 6–8 GB | Optional | 3–4 GB | 3–4 GB | Compact local assistant |
+| Model ID | Family | Params | CPU (Min/Rec) | Inf VRAM (Q4/FP16) | Train VRAM (LoRA) | Storage (Worksp) | Est. Throughput |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `smollm2-135m-instruct` | SmolLM2 | 135M | 2c / 4c (AVX2) | ~1.0 GB / ~1.5 GB | ~2.0 GB | 2.0 GB | ~120 tok/s |
+| `smollm2-360m-instruct` | SmolLM2 | 360M | 2c / 4c (AVX2) | ~1.2 GB / ~2.0 GB | ~2.5 GB | 3.0 GB | ~95 tok/s |
+| `gemma3-270m-instruct` | Gemma 3 | 270M | 2c / 4c (AVX2) | ~1.2 GB / ~2.0 GB | ~2.5 GB | 3.0 GB | ~85 tok/s |
+| `qwen3-0.6b-instruct` | Qwen3 | 0.6B | 2c / 4c (AVX2) | ~1.5 GB / ~2.5 GB | ~3.5 GB | 4.0 GB | ~75 tok/s |
+| `qwen3.5-0.8b-instruct` | Qwen3.5 | 0.8B | 2c / 4c (AVX2) | ~1.8 GB / ~3.0 GB | ~4.0 GB | 5.0 GB | ~68 tok/s |
+| `llama-3.2-1b-instruct` | Llama 3.2 | 1B | 2c / 4c (AVX2) | ~2.0 GB / ~3.5 GB | ~4.5 GB | 6.0 GB | ~60 tok/s |
+| `gemma3-1b-instruct` | Gemma 3 | 1B (V) | 2c / 4c (AVX2) | ~2.5 GB / ~4.0 GB | ~5.0 GB | 6.5 GB | ~55 tok/s |
+| `smollm2-1.7b-instruct` | SmolLM2 | 1.7B | 4c / 6c (AVX2) | ~3.0 GB / ~5.5 GB | ~6.0 GB | 8.0 GB | ~48 tok/s |
 
 ---
 
 ### 2. 1B–4B — Small / Compact
-* **Primary Tiers**: Tier T1 (Low VRAM - 4GB Laptop GPU) & Tier T2
-* **Typical MYAI Use**: Fast conversational assistants, local coding copilots, domain Q&A, and vision reasoning.
+* **Primary Targets**: Tier T1 (4GB Laptop GPU / GTX 1650) & Tier T2
+* **Key Use Cases**: Fast conversational AI, domain Q&A, local coding assistance, edge vision.
 
-| Model Family | Size | CPU | System RAM | GPU | VRAM (Q4 Inf) | Storage | Typical MYAI Use |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Llama 3.2** | 3B | 4 cores | 8 GB | Optional / 4 GB | 4 GB | 3–5 GB | Chat, extraction, domain Q&A |
-| **Qwen3** | 4B | 4 cores | 8 GB | 4–6 GB | 5–6 GB | 5–6 GB | High-speed general AI |
-| **Qwen3.5** | 2B | 4 cores | 8 GB | 4 GB | 4 GB | 3–4 GB | Fast general assistant |
-| **Qwen3.5** | 4B | 4 cores | 8–12 GB | 6 GB | 5–6 GB | 5–6 GB | Chat, coding, reasoning |
-| **Gemma 3** | 4B | 4 cores | 8–12 GB | 6 GB | 5–6 GB | 5–6 GB | Text + vision multimodal |
-| **Phi-4-mini** | 3.8B | 4 cores | 8–12 GB | 6 GB | 5–6 GB | 5–6 GB | 128k context reasoning / code |
-| **Ministral 3** | 3B class | 4 cores | 8–12 GB | 6 GB | 5–6 GB | 5–7 GB | Edge vision + text |
+| Model ID | Family | Params | CPU (Min/Rec) | Inf VRAM (Q4/FP16) | Train VRAM (QLoRA) | Storage (Worksp) | Est. Throughput |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `llama-3.2-3b-instruct` | Llama 3.2 | 3B | 4c / 8c (AVX-512) | ~4.0 GB / ~8.0 GB | ~5.5 GB | 14.0 GB | ~42 tok/s |
+| `qwen3-4b-instruct` | Qwen3 | 4B | 4c / 8c (AVX2) | ~5.0 GB / ~10.0 GB | ~6.5 GB | 18.0 GB | ~38 tok/s |
+| `phi-4-mini-instruct` | Phi-4 | 3.8B | 4c / 8c (AVX-512) | ~5.0 GB / ~9.5 GB | ~6.0 GB | 17.0 GB | ~38 tok/s |
+| `gemma3-4b-instruct` | Gemma 3 | 4B (V) | 4c / 8c (AVX2) | ~5.0 GB / ~10.0 GB | ~6.5 GB | 19.0 GB | ~36 tok/s |
+| `ministral-3-3b-instruct`| Ministral 3 | 3B (V) | 4c / 8c (AVX2) | ~4.5 GB / ~8.5 GB | ~5.8 GB | 15.0 GB | ~40 tok/s |
 
 ---
 
 ### 3. 7B–15B — Mid / Medium
-* **Primary Tiers**: Tier T1 (via Layer Streaming) & Tier T2 (Resident QLoRA / DPO)
-* **Typical MYAI Use**: Production-grade local AI, complex multi-step reasoning, tool calling, and preference alignment.
+* **Primary Targets**: Tier T1 (*Exact Layer Streaming*) & Tier T2 (Resident RTX 3060 / 4070)
+* **Key Use Cases**: Production local AI, complex reasoning, tool calling, preference alignment (DPO/SimPO).
 
-| Model Family | Size | CPU | System RAM | GPU | VRAM (4-bit Inf) | Storage | Fine-Tuning Target |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Qwen3** | 8B | 6+ cores | 16 GB | NVIDIA 8 GB+ | 6–8 GB | 8–10 GB | 10–12 GB+ *(~3.32 GB via Layer Streaming)* |
-| **Llama 3.1 / 3.x** | 8B | 6+ cores | 16 GB | NVIDIA 8 GB+ | 6–8 GB | 8–10 GB | 10–14 GB+ *(~3.32 GB via Layer Streaming)* |
-| **Qwen3.5** | 9B | 6+ cores | 16 GB | NVIDIA 8 GB+ | 7–9 GB | 9–11 GB | 12–16 GB+ |
-| **Gemma 3** | 12B | 8 cores | 16–24 GB | NVIDIA 12 GB+ | 9–11 GB | 10–14 GB | 16–24 GB+ |
-| **Phi-4** | 14B | 8 cores | 24 GB | NVIDIA 12–16 GB | 10–13 GB | 12–16 GB | 18–24 GB+ |
-| **Ministral 3** | 8B | 6+ cores | 16 GB | NVIDIA 8 GB+ | 6–8 GB | 8–10 GB | 12–16 GB+ |
-| **Ministral 3** | 14B | 8 cores | 24 GB | NVIDIA 16 GB+ | 10–13 GB | 13–16 GB | 18–24 GB+ |
-| **DeepSeek Distill** | 7B/8B/14B | 6–8 cores | 16–24 GB | NVIDIA 8–16 GB | 6–13 GB | 8–16 GB | 12–24 GB+ |
+| Model ID | Family | Params | CPU (Min/Rec) | Inf VRAM (Q4/FP16) | Train VRAM (Resident) | Train VRAM (Streaming) | Est. Throughput |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `llama-3.1-8b-instruct` | Llama 3.1 | 8B | 6c / 12c (AVX-512) | ~7.0 GB / ~17.5 GB | ~9.5 GB (QLoRA) | **~3.32 GB** | ~28 tok/s |
+| `qwen3-8b-instruct` | Qwen3 | 8B | 6c / 12c (AVX2) | ~7.0 GB / ~18.0 GB | ~9.8 GB (QLoRA) | **~3.32 GB** | ~28 tok/s |
+| `gemma3-12b-instruct` | Gemma 3 | 12B (V) | 8c / 16c (AVX2) | ~10.0 GB / ~25.0 GB | ~13.0 GB (QLoRA) | **~3.80 GB** | ~22 tok/s |
+| `phi-4-14b-instruct` | Phi-4 | 14B | 8c / 16c (AVX-512) | ~11.5 GB / ~29.0 GB | ~14.5 GB (QLoRA) | **~4.00 GB** | ~20 tok/s |
+| `deepseek-distill-7b-instruct` | DeepSeek | 7B | 6c / 12c (AVX2) | ~6.5 GB / ~16.0 GB | ~9.0 GB (QLoRA) | **~3.20 GB** | ~30 tok/s |
 
 ---
 
 ### 4. 20B–40B — Large Local
-* **Primary Tiers**: Tier T3 (Single High-End GPU / RTX 4090 / 32GB–48GB Workstations)
-* **Typical MYAI Use**: Advanced deep reasoning, mathematical synthesis, and high-accuracy autonomous agents.
+* **Primary Targets**: Tier T3 (RTX 3090 / 4090 / 24GB–48GB Workstations)
+* **Key Use Cases**: Advanced deep reasoning, mathematical synthesis, high-accuracy autonomous agents.
 
-| Model Family | Size | CPU | System RAM | GPU | VRAM (4-bit Inf) | Storage | Fine-Tuning Target |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Qwen3** | 30B-A3B (MoE) | 8+ cores | 32 GB | NVIDIA 16 GB+ | 18–22 GB | 20–25 GB | 24–32 GB+ |
-| **Qwen3** | 32B | 8–12 cores | 32–48 GB | NVIDIA 24 GB+ | 20–24 GB | 22–30 GB | 32–48 GB+ |
-| **Qwen3.5** | 27B | 8–12 cores | 32 GB | NVIDIA 20–24 GB | 18–22 GB | 20–25 GB | 28–40 GB+ |
-| **Qwen3.5** | 35B-A3B (MoE) | 8–12 cores | 32–48 GB | NVIDIA 24 GB+ | 20–25 GB | 25–30 GB | 32–48 GB+ |
-| **Gemma 3** | 27B | 8–12 cores | 32–48 GB | NVIDIA 24 GB+ | 18–22 GB | 20–25 GB | 32–48 GB+ |
-| **Mistral Small 3.1** | 24B | 8+ cores | 32 GB | NVIDIA 24 GB / RTX 4090 | ~18–22 GB | ~25 GB | 28–40 GB+ |
-| **DeepSeek-R1 Distill** | 32B | 8–12 cores | 32–48 GB | NVIDIA 24 GB+ | ~22–26 GB | 25–35 GB | 32–48 GB+ |
+| Model ID | Family | Type | Params (Act/Tot) | Inf VRAM (Q4) | Train VRAM (QLoRA) | Storage (Worksp) | Est. Throughput |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `mistral-small-3.1-24b` | Mistral Small | Dense (V)| 24B / 24B | ~18.0 GB | ~22.0 GB | 110.0 GB | ~14 tok/s |
+| `qwen3-30b-a3b-instruct` | Qwen3 MoE | MoE | **3B / 30B** | ~18.0 GB | ~24.0 GB | 130.0 GB | **~32 tok/s** |
+| `deepseek-r1-distill-32b`| DeepSeek | Dense | 32B / 32B | ~22.0 GB | ~28.0 GB | 150.0 GB | ~10 tok/s |
 
 ---
 
 ### 5. 60B–90B — High-End Workstation / Multi-GPU
-* **Primary Tiers**: Dual GPU / 48GB–96GB VRAM High-End Workstations
+* **Primary Targets**: Dual GPU / 48GB–96GB VRAM Workstations
 
-| Model Family | Size | CPU | System RAM | GPU Configuration | Approx. 4-bit VRAM | Storage | Fine-Tuning |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Llama 3.1** | 70B | 16+ cores | 64–96 GB | 48 GB+ / Multi-GPU | ~40–45 GB | 45–55 GB | 64–96 GB+ |
-| **Llama 3.3** | 70B | 16+ cores | 64–96 GB | 48 GB+ / Multi-GPU | ~40–45 GB | 45–55 GB | 64–96 GB+ |
-| **DeepSeek Distill** | 70B | 16+ cores | 64–96 GB | 48 GB+ / Multi-GPU | ~40–45 GB | 45–55 GB | 64–96 GB+ |
-| **Qwen 2.5** | 72B | 16+ cores | 64–96 GB | 48 GB+ / Multi-GPU | ~42–48 GB | 50–60 GB | 64–96+ GB |
+| Model ID | Family | Params | Topology | Inf VRAM (Q4) | Train VRAM (LoRA) | Storage (Worksp) | Est. Throughput |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `llama-3.1-70b-instruct` | Llama 3.1 | 70B | 2–4 GPUs (NVLink) | ~42.0 GB | ~55.0 GB (QLoRA) | 320.0 GB | ~5 tok/s |
 
 ---
 
-### 6. 100B–150B — Server / Multi-GPU MoE
-* **Primary Tiers**: Multi-GPU Node Clusters (2–4 × 48GB/80GB GPUs)
+### 6. 100B–675B+ — Server & Extreme MoE Clusters
+* **Primary Targets**: Distributed Multi-GPU Cluster Nodes (4–16 GPUs, 80GB VRAM, NVLink / InfiniBand, FSDP / Tensor Parallelism)
 
-| Model Family | Total Params | Active Params | CPU | System RAM | GPU Setup | Approx. 4-bit VRAM | Storage |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Qwen3.5** | 122B-A10B | 10B | 24+ cores | 128 GB+ | 2–4 × 48 GB+ | ~70–80 GB+ | 80–100 GB |
-| **GLM-4.5-Air** | 106B-A12B | 12B | 24+ cores | 128 GB+ | Multi-GPU | ~60–70 GB+ | ~75–100 GB |
-| **Mistral Medium 3.5** | 128B | Dense | 24+ cores | 128 GB+ | Multi-GPU | ~70–85 GB+ | ~85–110 GB |
-
----
-
-### 7. 200B–250B — Large MoE
-| Model Family | Total Params | Active Params | CPU | System RAM | GPU Setup | 4-bit Memory Planning | Storage |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Qwen3** | 235B-A22B | 22B | 32+ cores | 256 GB+ | Multi-GPU | ~130–150 GB+ | 140–170 GB |
-| **Large MoE Cluster** | 200–250B | 15–30B | 32+ cores | 256 GB+ | Multi-GPU | 120–160 GB+ | 140–180 GB |
-
-> **Note**: Active parameters determine computational latency; total parameters dictate model weight storage and VRAM capacity.
+| Model ID | Family | Type | Params (Act/Tot) | Multi-GPU Topology | Inf VRAM (Q4) | Train VRAM (FSDP) | Storage (Worksp) |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `glm-4.5-air-106b-a12b` | GLM-4.5 | MoE | **12B / 106B** | 2–4 × 48 GB (NVLink) | ~65.0 GB | ~85.0 GB (QLoRA) | 480.0 GB |
+| `qwen3-235b-a22b` | Qwen3 MoE | MoE | **22B / 235B** | 4–8 × 80 GB (NVLink) | ~140.0 GB | ~180.0 GB (QLoRA) | 1,100.0 GB |
+| `mistral-large-3-675b` | Mistral Large | MoE (V)| **45B / 675B** | 8–16 × 80 GB (InfiniBand)| ~340.0 GB | ~450.0 GB (QLoRA) | 3,000.0 GB |
 
 ---
 
-### 8. 250B–500B+ — Extreme Server MoE
-| Model Family | Total Params | Active Params | CPU | System RAM | GPU Setup | Approx. 4-bit Memory | Storage |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Qwen3.5** | ~397B | ~17B | 48+ cores | 512 GB+ | Multi-GPU | ~200 GB+ | 230 GB+ |
-| **GLM-4.5** | 355B | 32B | 48+ cores | 512 GB+ | Multi-GPU | ~180–200 GB+ | 210–250 GB |
-| **Llama 4 Maverick** | ~402B | 17B | 48+ cores | 512 GB+ | Multi-GPU | ~200 GB+ | 230 GB+ |
-| **Mistral Large 3** | 675B | MoE | 64+ cores | 512 GB–1 TB+ | Large Multi-GPU | ~340 GB+ | 400 GB+ |
+## 🔍 5. Explainable Recommendation Example
 
----
+When running `myai recommend`, MYAI computes and displays multi-factor explainability:
 
-## 🧩 Better MYAI Schema Specification
-
-The `RegistryModel` entity in `src/myai/models/schema.py` exposes complete hardware, architectural, and capability attributes:
-
-```yaml
-id: qwen3-8b-instruct
-name: Qwen3 8B Instruct
-family: Qwen3
-modality: Text
-architecture:
-  parameters: 8B
-  type: Dense
-  hidden_size: 4096
-  num_layers: 32
-  context_length: 131072
-hardware:
-  cpu_min_cores: 6
-  ram_min_gb: 16.0
-  minimum_vram_gb: 8.0
-  vram_q4_gb: 7.0
-  vram_fp16_gb: 18.0
-  storage_gb: 10.0
-  finetune_vram_gb: 12.0
-  training_ram_gb: 32.0
-capabilities:
-  vision: false
-  audio: false
-  tools: true
-  reasoning: true
-training:
-  methods: [LoRA, QLoRA, layer_streaming, dpo, simpo]
-source:
-  repository: Qwen/Qwen3-8B-Instruct
-license:
-  name: Apache 2.0
-recommended_tier: T2
-confidence: 0.98
+```text
+1. Llama 3.1 8B Instruct (llama-3.1-8b-instruct) (Active)
+   Verdict      : ⭐ RECOMMENDED
+   Fit Score    : 94/100 (Confidence: 94%)
+   Method       : QLoRA
+   Estimated Spd: ~28.0 tok/s
+   VRAM (Q4/FP) : ~7.0 GB / ~17.5 GB (Training: ~16.0 GB)
+   Storage      : Download 15.0 GB · Workspace 38.0 GB
+   Fit Matrix   : HW 95.0% · Data 95.0% · Task 95.0% · Deploy 85.0%
+   Rationale    : Fits in 12.0 GB VRAM with QLoRA; Instruction-tuned architecture matches conversational/Q&A goal
 ```

@@ -1,0 +1,65 @@
+id: glm-4.5-air-106b-a12b
+name: GLM-4.5 Air 106B-A12B
+family: GLM-4.5
+modality: Text
+architecture:
+  parameters: 106B
+  type: MoE
+  active_parameters: 12B
+  num_experts: 64
+  num_active_experts: 8
+  hidden_size: 4096
+  num_layers: 46
+  context_length: 131072
+cpu:
+  min_cores: 24
+  rec_cores: 48
+  architecture: x86_64
+  instruction_sets:
+  - AVX-512
+  est_cpu_tok_per_sec: 1.5
+inference:
+  q4_vram_gb: 65.0
+  q8_vram_gb: 115.0
+  fp16_vram_gb: 215.0
+  ram_gb: 128.0
+  est_tokens_per_sec: 12.0
+training:
+  lora_vram_gb: 140.0
+  qlora_vram_gb: 85.0
+  layer_streaming_vram_gb: 16.0
+  training_ram_gb: 256.0
+  download_size_gb: 200.0
+  runtime_storage_gb: 230.0
+  workspace_storage_gb: 480.0
+  methods:
+  - LoRA
+  - QLoRA
+multi_gpu:
+  min_count: 2
+  rec_count: 4
+  vram_per_gpu_gb: 48.0
+  total_vram_gb: 96.0
+  interconnect: NVLink
+  parallelism: TP
+capabilities:
+  tool_calling: true
+  structured_json: true
+  vision: false
+  audio: false
+  reasoning: true
+quantizations:
+- FP16
+- INT8
+- INT4
+- GGUF_Q4_K_M
+tasks:
+- chat
+- code
+- reasoning
+source:
+  repository: THUDM/glm-4.5-air
+license:
+  name: Open Model License
+recommended_tier: T3
+confidence: 0.97
