@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/myai-logo.png" alt="MYAI Logo - Build · Train · Evolve" width="350">
+  <img src="assets/myai-logo.png" alt="MYAI Logo - Build · Train · Evolve" width="340">
 </p>
 
 <h1 align="center">MYAI</h1>
@@ -10,32 +10,32 @@
 </p>
 
 <p align="center">
-  <a href="#-quickstart-in-3-commands">Quick Start</a> &middot;
+  <a href="#-quickstart-in-3-commands">Quickstart</a> &middot;
   <a href="#-why-myai">Why MYAI?</a> &middot;
   <a href="#-key-capabilities">Capabilities</a> &middot;
-  <a href="#-supported-models--hardware-tiers">Models & Hardware</a> &middot;
-  <a href="#-cli-command-reference">Commands</a> &middot;
+  <a href="#-15-point-hardware-intelligence">Hardware Intelligence</a> &middot;
+  <a href="#-supported-model-families">Models & Hardware</a> &middot;
+  <a href="#-complete-cli-reference">CLI Reference</a> &middot;
   <a href="#-18-point-security-gate">Security Gate</a> &middot;
   <a href="#-running-your-exported-model">Web Chat UI</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python">
-  <img src="https://img.shields.io/badge/license-Apache%202.0-green" alt="License">
-  <img src="https://img.shields.io/badge/tests-209%2F209%20passing-brightgreen" alt="Tests">
-  <img src="https://img.shields.io/badge/hardware%20intelligence-15--point%20matrix-blueviolet" alt="Hardware Intelligence">
-  <img src="https://img.shields.io/badge/layer%20streaming-8B%20on%204GB%20GPU-blueviolet" alt="Layer Streaming">
-  <img src="https://img.shields.io/badge/alignment-DPO%20%7C%20ORPO%20%7C%20SimPO-orange" alt="Alignment">
-  <img src="https://img.shields.io/badge/export%20gate-18%2F18%20verified-brightgreen" alt="Security Gate">
-  <img src="https://img.shields.io/badge/privacy-100%25%20local%20%26%20air--gapped-success" alt="Privacy">
-  <img src="https://img.shields.io/badge/autopilot-goal--to--deployment-blueviolet" alt="Autopilot">
+  <a href="https://github.com/kiransai-62/myai-model-builder"><img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green.svg" alt="License"></a>
+  <a href="https://github.com/kiransai-62/myai-model-builder/actions"><img src="https://img.shields.io/badge/tests-209%2F209%20passing-brightgreen.svg" alt="Tests Passing"></a>
+  <a href="docs/hardware_catalog.md"><img src="https://img.shields.io/badge/hardware%20intelligence-15--point%20matrix-blueviolet" alt="Hardware Intelligence"></a>
+  <a href="#-exact-layer-streaming"><img src="https://img.shields.io/badge/layer%20streaming-8B%20on%204GB%20GPU-blueviolet" alt="Layer Streaming"></a>
+  <a href="#-post-training-alignment-zoo"><img src="https://img.shields.io/badge/alignment-DPO%20%7C%20ORPO%20%7C%20SimPO%20%7C%20KTO-orange" alt="Alignment"></a>
+  <a href="#-18-point-security-gate"><img src="https://img.shields.io/badge/export%20gate-18%2F18%20verified-brightgreen" alt="Security Gate"></a>
+  <img src="https://img.shields.io/badge/privacy-100%25%20local%20%26%20air--gapped-success" alt="Air Gapped Privacy">
 </p>
 
 ---
 
-Tell MYAI what AI you want. MYAI understands your **goal**, your **hardware**, and your **data** — then automatically plans, cleans, fine-tunes, evaluates, optimizes, and packages your custom model into a standalone, portable ZIP with its own Luminous Web & CLI Chat UI or GGUF format for Ollama.
+Tell MYAI what AI you want. MYAI analyzes your **goal**, your **hardware**, and your **data** — then automatically plans, cleans, fine-tunes, evaluates, optimizes, and packages your custom model into a standalone, portable ZIP with its own Luminous Web & CLI Chat UI, or exports it to GGUF format for Ollama and `llama.cpp`.
 
-No cloud GPUs required. Zero data leakage. No framework lock-in.
+> **No cloud GPUs required. Zero data leakage. No framework lock-in.**
 
 ---
 
@@ -45,173 +45,191 @@ No cloud GPUs required. Zero data leakage. No framework lock-in.
 # 1. Initialize your project with an interactive Goal Profile
 myai init fitness-coach
 
-# 2. Add your data in-place (JSONL, JSON, CSV)
+# 2. Add your dataset in-place (JSONL, JSON, CSV, TXT, Parquet)
 cd fitness-coach
 myai data add ./workouts.jsonl
 
-# 3. Autopilot: Goal → Hardware → Data → Train → Eval → Optimize → Export
+# 3. Run Autopilot: Goal → Hardware → Data → Train → Eval → Optimize → Export
 myai auto --export
 ```
 
+### 🖥️ Autopilot Lifecycle in Action:
 ```text
-[1] 🎯 Goal: domain-qa / fitness
-[2] 🖥️ Hardware: NVIDIA GeForce RTX 3060 · tier T2
-[3] 📊 Data: 1,420 samples · quality 92/100 · dup 0.0%
-[4] 🧠 Model: Qwen 2.5 (1.5B) · LoRA / QLoRA
-[5] ⚖️ Feasibility: PASS · est 3.8 GB VRAM
-[6] ⚙️ Strategy: 4bit r16 · 3 ep · ~4.2 min · 0.8 GB storage
-[7] 🏗️ Training: run-001 · 4.1 min
-[8] 🏆 Leaderboard: run-001 → 87.4/100 composite
-[9] 🔧 Optimizer: improved → run-002 (89.6/100)
-[10] 🛡️ Ship Gate: 4/4 offline regression suites passed → SHIP
-[11] 📦 Export: 18/18 security gate passed → fitness-coach.myai.zip
-🎉 YOUR AI IS READY
+[1]  🎯 Goal Understanding:   domain-qa / fitness (Goal-relative eval weights locked)
+[2]  🖥️ Hardware Benchmark:   NVIDIA GeForce RTX 3060 · 12.0 GB VRAM · Tier T2
+[3]  📊 Dataset Intelligence: 1,420 samples · Quality 92/100 · 0.0% Duplication
+[4]  🧠 Model Selection:      Qwen 2.5 (1.5B) Instruct · Recommended (Score 94.2)
+[5]  ⚖️ Dual-Gate Check:      PASS · Estimated 3.8 GB VRAM (8.2 GB Headroom)
+[6]  ⚙️ Strategy Planner:     QLoRA 4-bit r16 · 3 Epochs · ~4.2 min · 0.8 GB Storage
+[7]  🏗️ Training Engine:      run-001 · Converged in 4.1 min · Loss 0.412
+[8]  🏆 Goal Leaderboard:     run-001 → 87.4/100 Composite Score (Release Candidate)
+[9]  🔧 Auto-Optimizer:       Prescribed LR adjustment → run-002 (89.6/100 Composite)
+[10] 🛡️ Leg-2 Ship Gate:      4/4 Offline Regression Suites Passed → VERDICT: SHIP
+[11] 📦 Security Export Gate: 18/18 Containment Checks Passed → fitness-coach.myai.zip
+🎉 YOUR AI IS READY TO DEPLOY
 ```
 
 ---
 
 ## 💡 Why MYAI?
 
-Building and deploying fine-tuned models is traditionally fragmented between manual script writing, CUDA OOM troubleshooting, separate evaluation frameworks, and complex serving infrastructure. MYAI unifies the entire stack into an **autonomous local pipeline**:
+Building, evaluating, and packaging fine-tuned LLMs has traditionally been fragmented across ad-hoc scripts, CUDA out-of-memory errors, disconnected evaluation tools, and bulky serving setups. MYAI unifies the entire stack into an **autonomous, local-first platform**:
 
-- 🔒 **100% Local & Air-Gapped**: Zero cloud lock-in. No telemetry. Strict Reference Mode ensures raw datasets are never modified or uploaded.
-- 🌊 **Exact Layer Streaming (8B on 4GB VRAM)**: Streams base decoder layers from host RAM/disk to GPU buffers on demand, keeping peak VRAM under **~3.32 GB**.
-- 🎯 **Post-Training Alignment Zoo**: Direct preference tuning with **DPO, ORPO, SimPO, and KTO**.
-- 🧠 **Deterministic Reward Synthesis (`myai reward synth`)**: Ingests reference outputs and automatically synthesizes calibrated, deterministic Python verifiers (`numeric`, `json_schema`, `regex`, `tool_call`).
-- 🛡️ **Leg-2 Regression Ship Gate (`myai ship`)**: 4 bundled offline test suites (JSON validity, tool calling, arithmetic, safety refusals) issuing cryptographic SHIP / DON'T-SHIP verdicts.
-- 📦 **Zero-Dependency Web App ZIP & GGUF Export**: Generates self-contained packages containing their own built-in `http.server` Luminous Web Chat UI and Ollama `Modelfile`s.
+| Feature | Description |
+| :--- | :--- |
+| 🔒 **100% Local & Air-Gapped** | All compute, tokenization, training, and evaluation runs on your local workstation. Zero outbound telemetry or cloud lock-in. |
+| 🌊 **Exact Layer Streaming** | Fine-tune **8B parameter models on a 4GB laptop GPU** by streaming base decoder layers on demand, maintaining peak VRAM $\le 3.32\text{ GB}$. |
+| 🖥️ **15-Point Hardware Intelligence** | Dedicated memory calculations (`inference`, `lora`, `qlora`, `dpo`, `grpo`, `layer_streaming`), multi-tier context profiles (2K–128K), and 8-factor system compatibility scoring. |
+| 🎯 **Post-Training Alignment Zoo** | Direct preference optimization with **DPO, ORPO, SimPO, and KTO**. |
+| 🧠 **Deterministic Reward Synthesis** | Ingests reference datasets and synthesizes calibrated Python verifier functions (`numeric`, `json_schema`, `regex`, `tool_call`). |
+| 🛡️ **Leg-2 Regression Ship Gate** | 4 bundled offline test suites (JSON validity, tool calling, arithmetic, safety refusals) issuing cryptographic SHIP / DON'T-SHIP verdicts. |
+| 📦 **Zero-Dependency Exports** | Self-contained ZIP containing its own built-in `http.server` Luminous Web Chat UI, GGUF format for Ollama, and merged weight checkpoints. |
 
 ---
 
 ## 🌟 Key Capabilities
 
 ```mermaid
-graph LR
-    A[🎯 Goal Understanding] --> B[🖥️ Hardware Benchmark]
-    B --> C[🧹 Dataset Intelligence]
-    C --> D[⚖️ Dual-Gate Feasibility]
-    D --> E[⚙️ Training Strategy Planner]
-    E --> F[🏗️ Training & Alignment Engine]
-    F --> G[🏆 Goal-Weighted Leaderboard]
-    G --> H[🔧 Autonomous Optimizer]
-    H --> I[🛡️ Leg-2 Ship Gate]
-    I --> J[📦 18-Point Security Gate]
-    J --> K[🚀 Standalone Portable Package]
+graph TD
+    A["🎯 Goal Profile (Task, Domain, Latency, Context)"] --> B["🖥️ 15-Point Hardware Benchmark & Profiler"]
+    B --> C["🧹 Dataset Intelligence (Reference Mode & Tokenizer Analysis)"]
+    C --> D["⚖️ Dual-Gate Feasibility & Dedicated Memory Engine"]
+    D --> E["⚙️ Adaptive Training Strategy Planner"]
+    E --> F["🏗️ Fine-Tuning & Alignment Zoo (LoRA / QLoRA / DPO / SimPO)"]
+    F --> G["🏆 Goal-Weighted Metric Leaderboard"]
+    G --> H["🔧 Autonomous Mutation Optimizer Loop"]
+    H --> I["🛡️ Leg-2 Offline Regression Ship Gate"]
+    I --> J["📦 18-Point Containment Export Gate"]
+    J --> K["🚀 Standalone Luminous Web Chat ZIP & GGUF (Ollama)"]
 ```
 
-### 1. 🎯 Goal Understanding & Composite Metric Weighting (Stage A)
+### 1. 🎯 Goal Understanding & Composite Metric Weighting
 Define your AI's task and domain (`chat`, `code`, `domain-qa`, `summarization`, `extraction`, `reasoning`). MYAI automatically computes goal-weighted evaluation matrices (BLEU, ROUGE, readability, domain accuracy, exact match) so "best" is measured against your actual goal, not generic averages.
 
-### 2. 🧹 Dataset Intelligence & Strict Reference Mode (Stage B)
-* **Strict Reference Mode**: Original data files are **never modified** ($MD5_{\text{before}} = MD5_{\text{after}}$).
-* **PII & Secret Scrubbing**: Redacts emails, phone numbers, OpenAI (`sk-`), HuggingFace (`hf_`), GitHub (`ghp_`), and AWS credentials.
-* **Exact & Fuzzy Deduplication**: SequenceMatcher and MD5 hashing eliminate sample redundancy.
-* **Leakage Detection**: Automatically isolates train/validation contamination before training starts.
+### 2. 🧹 Dataset Intelligence & Strict Reference Mode
+* **Strict Reference Mode**: Original data files are **never modified in-place** ($MD5_{\text{before}} = MD5_{\text{after}}$).
+* **PII & Secret Scrubbing**: Automatically redacts emails, phone numbers, and API tokens (`sk-`, `hf_`, `ghp_`, `AKIA`).
+* **Exact & Fuzzy Deduplication**: MD5 and SequenceMatcher algorithms remove duplicate and near-duplicate samples.
+* **Leakage Detection**: Isolates train/validation contamination before training starts.
 
-### 3. ⚖️ Dual-Gate Feasibility & Layer Streaming (Stage C)
-* **Empirical VRAM Modeling**: Accurately computes base model weights, KV cache, activation memory, LoRA adapter states, and CUDA allocator headroom.
-* **Layer Streaming Auto-Activation**: On 4GB laptop GPUs, activates Layer Streaming to fit 8B parameter models safely.
+### 3. 🔬 Tokenizer Analysis & Context Distribution
+* Exact token counts across Llama, Qwen, and SmolLM tokenizers.
+* Percentile distributions ($P_{50}, P_{95}, P_{99}$) and context overflow warnings before allocating memory.
 
-### 4. 🏗️ Training & Alignment Engine (Stage D)
-* **SFT Fine-Tuning**: LoRA & QLoRA (4-bit NF4 / 8-bit).
-* **Preference Alignment Zoo**: DPO, ORPO, SimPO, and KTO.
+### 4. 🌊 Exact Layer Streaming (8B on 4GB VRAM)
+Enables local training on budget and laptop GPUs. By keeping only active transformer blocks in VRAM and streaming base weights from host RAM/NVMe storage, peak VRAM is kept under **~3.32 GB**.
 
-### 5. 🔧 Autonomous Optimizer Loop (Stage E)
-* Diagnoses metric deficiencies in the top release candidate.
-* Prescribes minimal strategy mutations (LR, LoRA rank, sequence length, epochs) and retrains with an **Improvement Justified Gate** (`Δ >= min_delta`).
+### 5. 🧬 Post-Training Alignment Zoo
+Fine-tune beyond basic SFT with modern preference alignment algorithms:
+* **DPO** (Direct Preference Optimization)
+* **ORPO** (Odds Ratio Preference Optimization — reference-model-free)
+* **SimPO** (Simple Preference Optimization — length-normalized margin)
+* **KTO** (Kahneman-Tversky Optimization — binary binary feedback)
 
-### 6. 🛡️ Leg-2 Regression Ship Gate & 18-Point Export Gate (Stage F)
-* Validates model against 4 bundled offline reasoning and safety suites (`myai ship`).
-* Packages the model through an **18-point containment gate** into a standalone ZIP or GGUF (Ollama).
+### 6. 🛡️ Leg-2 Regression Ship Gate & 18-Point Export Gate
+* Validates fine-tuned checkpoints against 4 offline regression suites (`myai ship`).
+* Enforces strict containment (no source code, no `.git`, no `.env`, no raw datasets, no path traversals) before packaging.
 
 ---
 
-## 🖥️ Supported Models & Hardware Tiers
+## 🖥️ 15-Point Hardware Intelligence
 
-| Hardware Tier | Available Memory | Recommended Models | Supported Methods |
+MYAI incorporates an architectural hardware modeling engine documented in [`docs/hardware_catalog.md`](docs/hardware_catalog.md):
+
+| Dimension | Mechanism | Purpose |
+| :--- | :--- | :--- |
+| **1. Dynamic Memory Engine** | Dedicated modes (`inference`, `lora`, `qlora`, `dpo`, `grpo`, `streaming`) | Exact calculation of weights, KV cache, activations, and CUDA buffers |
+| **2. Context Profiles** | Multi-tier evaluation ($2\text{K}, 4\text{K}, 8\text{K}, 16\text{K}, 32\text{K}, 64\text{K}, 128\text{K}$) | Verifies headroom at realistic operating lengths |
+| **3. 8-Factor System Compatibility** | VRAM (30%), RAM (15%), GPU (15%), CPU (10%), Storage (10%), Throughput (10%), Context (5%), Runtime (5%) | Decoupled hardware compatibility assessment |
+| **4. 5-Dimension Recommender** | Hardware (35%) + Dataset Fit (20%) + Task (20%) + Training (15%) + Deploy (10%) | Capacity-matched model selection with overfit/underfit penalties |
+| **5. 4-Tier Verdict Engine** | `⭐ RECOMMENDED`, `✅ COMPATIBLE`, `⚠️ POSSIBLE`, `❌ UNSUPPORTED` | Clear decision verdicts with explainability rationale bullets |
+| **6. 3-Tier Storage Budget** | Download footprint + Runtime working cache + Checkpoint storage | Prevents workspace disk exhaustion |
+| **7. MoE Architecture Modeling** | Total parameters vs. Active routing parameters | Exact disk sizing with active-parameter compute throughput |
+
+---
+
+## 📊 Supported Model Families
+
+MYAI provides a modular, hierarchical YAML registry spanning **0.1B to 675B+** parameters across 8 major model families:
+
+| Model Family | Representative Sizes | Architecture | Quantization Formats | Primary Strengths |
+| :--- | :--- | :---: | :---: | :--- |
+| **SmolLM2** | 135M, 360M, 1.7B | Dense | FP16, INT8, Q4_K_M | Ultra-lightweight on-device assistants, edge devices |
+| **Qwen 2.5 / 3 / 3.5** | 0.5B, 1.5B, 3B, 7B, 8B, 14B, 30B-A3B, 235B-A22B | Dense & MoE | FP16, FP8, AWQ, GPTQ, Q4_K_M | Multilingual instruction following, coding, reasoning |
+| **Llama 3.1 / 3.2** | 1B, 3B, 8B, 70B | Dense | FP16, BF16, Q4_K_M, INT8 | General reasoning, tool calling, instruction tuning |
+| **Gemma 3** | 270M, 1B, 4B, 12B | Dense | FP16, BF16, Q4_K_M | Mathematical reasoning, high-efficiency generation |
+| **Mistral / Ministral** | 3B, 8B, 14B, 24B, 675B (Large 3) | Dense & MoE | FP16, FP8, AWQ, Q4_K_M | Code generation, reasoning, large-scale enterprise MoE |
+| **Phi-4** | 3.8B (Mini), 14B | Dense | FP16, BF16, Q4_K_M | Advanced STEM reasoning, logic, and extraction |
+| **DeepSeek (R1 Distill)** | 7B, 32B | Dense | FP16, Q4_K_M, AWQ | Deep analytical reasoning, math, and code synthesis |
+| **GLM 4.5** | 106B-A12B | MoE | FP8, FP16, Q4_K_M | Fast sparse-MoE execution for long-context tasks |
+
+### Compute Tiers Overview
+
+| Hardware Tier | Memory Profile | Example Hardware | Supported Models |
 | :--- | :--- | :--- | :--- |
-| **Tier T0 (CPU)** | 8GB–16GB RAM | Qwen 2.5 / SmolLM2 (0.1B–1B) | CPU Simulation / LoRA |
-| **Tier T1 (Low VRAM)** | **4GB GPU** (Laptop / GTX 1650) | **Llama 3.1 (8B)**, Qwen 3 (4B/8B), Gemma 3 (4B) | **Exact Layer Streaming**, QLoRA 4-bit |
-| **Tier T2 (Mid VRAM)** | **8GB–16GB GPU** (RTX 3060 / 4070) | Llama 3.1 (8B), Qwen 3 (8B/14B), Phi-4 (14B), Ministral 3 (8B/14B) | Resident QLoRA 4-bit / 8-bit, DPO, SimPO |
-| **Tier T3 (High VRAM)**| **24GB+ GPU** (RTX 3090 / 4090 / A100) | Mistral Small (24B), Qwen 3 (32B), Llama 3.1 (70B) | FP16 LoRA, Full QLoRA, Multi-Task Alignment |
-
-> 📖 **Full Hardware Requirements Catalog**: See [`docs/hardware_catalog.md`](docs/hardware_catalog.md) for memory planning, active/total parameters, and fine-tuning targets for 0.1B to 675B+ MoE models.
+| **Tier T0 (CPU Only)** | 8GB–32GB Host RAM | Intel Core / AMD Ryzen (AVX2/AVX-512) | SmolLM2 (135M–1.7B), Qwen 2.5 (0.5B–1.5B) |
+| **Tier T1 (Low VRAM)** | **4GB–6GB VRAM** | GTX 1650, RTX 3050 Laptop | **Llama 3.1 (8B) via Layer Streaming**, Qwen 3 (4B), Gemma 3 (4B) |
+| **Tier T2 (Mid VRAM)** | **8GB–16GB VRAM** | RTX 3060, RTX 4070, Apple M-Series | Llama 3.1 (8B), Qwen 3 (8B/14B), Phi-4 (14B), Ministral 3 (8B/14B) |
+| **Tier T3 (High VRAM)** | **24GB+ VRAM** | RTX 3090, RTX 4090, A100, H100 | Mistral Small (24B), Qwen 3 (32B), Llama 3.1 (70B), MoE models |
 
 ---
 
-## 🧭 Step-by-Step Workflow
+## 🧭 Step-by-Step Workflow Guide
 
-### 1. Initialize Project & Set Goal
+### 1. Initialize Project & Goal
 ```bash
-myai init my-assistant
-cd my-assistant
+myai init fitness-coach --task domain-qa --domain fitness --context balanced
+cd fitness-coach
 ```
 
-This sets up `myai.yaml` with your project goal and evaluation weights.
-
-### 2. Check Project Status Anytime
-
+### 2. Register & Clean Data
 ```bash
-myai status
-```
+# Register dataset source and perform automatic tokenizer analysis
+myai data add ./coaching_data.jsonl
 
-```text
-┌────────────────────────────────────────────────────────┐
-│ 📊 Project: my-assistant                               │
-│ State: DATA_READY (2/5 stages complete)                │
-│ Goal: chat / general                                   │
-│ Dataset: 500 samples (train.jsonl)                     │
-│ Next Step: Run 'myai train' or 'myai auto'             │
-└────────────────────────────────────────────────────────┘
-```
-
-### 3. Add and Clean Data (Reference Mode)
-
-```bash
-# Register dataset source and run Tokenizer Analysis
-myai data add ./data.jsonl
-
-# Clean, deduplicate, scrub PII, and split train/val
+# Clean dataset, redact PII, deduplicate, and split 10% for holdout evaluation
 myai data clean --fuzzy --val-split 0.1
 ```
 
-### 3. Benchmark Hardware & Recommend Model
+### 3. Model Recommendation & System Check
 ```bash
+# Hardware capability check
 myai system check
+
+# Goal- and hardware-aware recommendation with 8-factor scoring
 myai recommend
 ```
 
-### 4. Train Model (or Train with Layer Streaming / Alignment)
+### 4. Fine-Tuning & Alignment
 ```bash
-# Standard training
+# Standard QLoRA fine-tuning
 myai train --epochs 3 --lr 2e-4
 
-# Train 8B model on 4GB laptop GPU with Exact Layer Streaming
+# Fine-tune an 8B model on a 4GB GPU using Layer Streaming
 myai train --stream-layers
 
-# Train direct preference alignment (SimPO or DPO)
+# Direct preference alignment (SimPO, DPO, ORPO, or KTO)
 myai train --task simpo
 ```
 
-### 5. Synthesize Deterministic Verifiers (`reward synth`)
+### 5. Synthesize Verifiers & Run Ship Gate
 ```bash
-myai reward synth ./data/references.jsonl -o reward.py --output-report calib.json
-```
+# Synthesize deterministic Python verifiers from references
+myai reward synth ./data/references.jsonl -o reward.py
 
-### 6. Run Leg-2 Regression Ship Gate
-```bash
+# Execute 4-suite Leg-2 regression gate
 myai ship
 ```
 
-### 7. Export Standalone Package
+### 6. Export Standalone Package
 ```bash
-# Export as standalone zero-dependency Web Chat ZIP
+# Export zero-dependency Web Chat ZIP
 myai export
 
-# Export to GGUF for Ollama & llama.cpp
+# Export GGUF format with 4-bit quantization for Ollama
 myai export --format gguf --quant q4_k_m
 
-# Merge LoRA adapter into standalone base weights
+# Merge adapter weights into base model checkpoint
 myai merge
 ```
 
@@ -219,102 +237,110 @@ myai merge
 
 ## 🚀 Running Your Exported Model
 
-The exported `.zip` contains a self-contained runtime that requires **zero MYAI code**:
+The exported `.zip` contains a self-contained runtime that requires **zero MYAI framework dependencies**:
 
 ```text
-my-assistant.myai.zip
-├── model/                  # LoRA adapter weights (adapter_model.bin / safetensors)
-├── tokenizer/              # Tokenizer configuration & vocab
-├── metadata.json           # Model provenance, base repo, and goal details
-├── evaluation.json         # Goal-weighted evaluation scores
-├── loader.py               # Zero-framework inference helper
+fitness-coach.myai.zip
+├── model/                  # LoRA adapter weights (safetensors / adapter_model.bin)
+├── tokenizer/              # Tokenizer config, vocab, and special tokens
+├── metadata.json           # Model provenance, base repo, and goal profile
+├── evaluation.json         # Goal-weighted metric scores & gate verification
+├── loader.py               # Pure-Python inference loader
 └── chat/
-    ├── app.py              # Zero-dependency local web server (http.server)
-    ├── ui.py               # Terminal fallback UI
+    ├── app.py              # Zero-dependency web server (built-in http.server)
+    ├── ui.py               # Terminal fallback chat interface
     ├── config.json         # UI configuration & branding
     └── web/
         └── index.html      # Luminous Web Chat interface
 ```
 
-### Launch Luminous Web Chat UI (Default)
+### Launch Luminous Web Chat UI
 ```bash
 python chat/app.py
 ```
-* Runs on Python's built-in `http.server` (requires zero pip dependencies).
-* Opens a modern, dark-mode ambient interface in your browser.
-* Includes animated thinking state, parameter controls, and message history.
+* Runs on Python's standard library `http.server` (0 external dependencies).
+* Opens a dark-mode, ambient responsive interface in your browser.
+* Includes real-time streaming, parameter controls, token counters, and message history.
 
 ---
 
 ## 🛡️ 18-Point Security Gate
 
-Before any export is written to disk, `myai` enforces strict containment:
+Every artifact packaged by `myai export` must pass an automated 18-point verification suite:
 
-| # | Security Check | Description |
-| --- | --- | --- |
-| **1** | Archive Integrity | Valid non-corrupt ZIP structure |
-| **2** | Model Weights | `model/` directory with valid adapter binaries |
-| **3** | Tokenizer | `tokenizer/` configuration present |
-| **4** | Metadata | `metadata.json` present with base repo provenance |
-| **5** | Evaluation | `evaluation.json` with verified metric scores |
-| **6** | Documentation | Standalone `README.md` included |
-| **7** | Portable Loader | Self-contained `loader.py` inference script |
-| **8** | Standalone Chat | Full `chat/app.py`, `chat/ui.py`, `chat/web/index.html` runtime |
-| **9** | **Source Isolation** | 🚫 Zero MYAI source code (`src/`, `myai/`) |
-| **10** | **Version Control** | 🚫 Zero `.git/` directories or history |
-| **11** | **Environment Files** | 🚫 Zero `.env` or environment configuration files |
-| **12** | **Secret Scrubbing** | 🚫 Zero API keys (`sk-`, `ghp_`, `hf_`, `AKIA`) in metadata |
-| **13** | **Dataset Privacy** | 🚫 Zero raw training datasets (`.jsonl`, `.csv`, `.parquet`) |
-| **14** | **Model Isolation** | 🚫 Zero unrelated model weights |
-| **15** | **Cache Cleanliness** | 🚫 Zero `__pycache__`, `.pyc`, `.DS_Store`, or temp files |
-| **16** | **Host Path Privacy** | 🚫 Zero raw absolute host filesystem paths |
-| **17** | **Traversal Protection** | 🚫 Zero path-traversal entries (`../`, absolute paths) |
-| **18** | **Atomic Packaging** | Package generated and validated atomically |
-
----
-
-## 🛠️ CLI Command Reference
-
-| Command | Description |
-| --- | --- |
-| `myai init [name]` | Initialize a new project with interactive Goal Profile interview |
-| `myai status` | Inspect project lifecycle status and recommended next steps |
-| `myai system check` | Probe local CPU, RAM, GPU, VRAM, and throughput benchmark |
-| `myai auto [--export] [--dry-run]` | **Autopilot**: Goal-to-Deployment autonomous pipeline |
-| `myai data add <path> [--model]` | Register local dataset sources in Reference Mode & run tokenizer analysis |
-| `myai data tokenize [--dataset] [--model] [--path]` | **Tokenizer Analysis**: Compute exact tokens, distributions & context fit |
-| `myai data clean [--fuzzy] [--val-split]` | Clean, deduplicate, scrub PII, and split datasets |
-| `myai data list` / `info` | Inspect registered datasets, sample counts, and quality scores |
-| `myai recommend` | Hardware- and goal-aware base model recommendation |
-| `myai train [--stream-layers] [--task]` | Train model with live metrics, **Exact Layer Streaming**, or **DPO/ORPO/SimPO** alignment |
-| `myai reward synth <refs> -o <out.py>` | **Reward Synth**: Infer and synthesize calibrated deterministic Python verifiers |
-| `myai ship [--base] [--adapter]` | **Ship Gate**: Run 4-suite Leg-2 offline regression gate for SHIP / DON'T-SHIP verdict |
-| `myai merge [--adapter] [--base]` | Merge LoRA adapter weights directly into standalone base model checkpoint |
-| `myai runs list` / `info <id>` | List historical training runs and metric breakdowns |
-| `myai runs best` / `leaderboard` | View experiment leaderboard and release candidate |
-| `myai optimize [--dry-run] [--max-iters]` | Autonomous retrain/compare optimization loop |
-| `myai export [--format gguf\|zip\|merged]` | Package as standalone Web App ZIP, **GGUF (Ollama)**, or Merged weights |
-| `myai serve` / `myai ask` | Serve local model with Knowledge Gate RAG protection |
+| # | Check | Category | Description |
+| :---: | :--- | :--- | :--- |
+| **1** | Archive Integrity | Structure | Verifies valid, non-corrupted ZIP header and structure |
+| **2** | Model Weights | Artifact | Valid adapter weights / safetensors present |
+| **3** | Tokenizer Bundle | Artifact | Complete tokenizer vocabulary and configuration files |
+| **4** | Metadata Manifest | Provenance | `metadata.json` containing verified training provenance |
+| **5** | Evaluation Audit | Quality | `evaluation.json` with verified holdout metric scores |
+| **6** | Documentation | Usability | Standalone deployment instructions and usage guide |
+| **7** | Portable Loader | Runtime | Self-contained `loader.py` script for local execution |
+| **8** | Standalone Chat | Runtime | Complete `chat/app.py` and `chat/web/index.html` runtime |
+| **9** | **Source Isolation** | Containment | 🚫 Zero MYAI internal source code (`src/`, `myai/`) |
+| **10** | **Version Control** | Privacy | 🚫 Zero `.git/` directories, branches, or commit logs |
+| **11** | **Environment Files** | Security | 🚫 Zero `.env` files or secret environment variables |
+| **12** | **Secret Scrubbing** | Security | 🚫 Zero API keys (`sk-`, `ghp_`, `hf_`, `AKIA`) in metadata |
+| **13** | **Dataset Privacy** | Privacy | 🚫 Zero raw training datasets (`.jsonl`, `.csv`, `.parquet`) |
+| **14** | **Model Isolation** | Containment | 🚫 Zero unrelated weight checkpoints |
+| **15** | **Cache Cleanliness** | Cleanliness | 🚫 Zero `__pycache__`, `.pyc`, `.DS_Store`, or temp files |
+| **16** | **Path Privacy** | Privacy | 🚫 Zero absolute host filesystem paths |
+| **17** | **Traversal Protection** | Security | 🚫 Zero path-traversal entries (`../`, root slashes) |
+| **18** | **Atomic Packaging** | Reliability | Archive written and validated atomically |
 
 ---
 
-## 🧪 Comprehensive Test Suite
+## 🛠️ Complete CLI Reference
 
-MYAI is verified by **203 automated tests** covering unit, integration, tokenizer streaming, preference losses, layer streaming, reward synthesis, regression gates, and security audit scenarios:
+| Command Group | Command | Description |
+| :--- | :--- | :--- |
+| **Project** | `myai init [name]` | Initialize a project workspace with interactive Goal Profile interview |
+| | `myai status` | Inspect project lifecycle state and recommended next steps |
+| | `myai system check` | Probe local CPU, RAM, GPU, VRAM, and compute tier |
+| | `myai system benchmark` | Run live hardware compute and memory throughput benchmark |
+| **Autopilot** | `myai auto [--export]` | **Autonomous Pipeline**: Goal → Hardware → Data → Train → Eval → Optimize → Export |
+| **Data** | `myai data add <path>` | Register local datasets in Reference Mode & run tokenizer analysis |
+| | `myai data tokenize` | **Tokenizer Analysis**: Compute exact tokens, distributions & context fit |
+| | `myai data clean` | Clean, deduplicate, scrub PII/secrets, and split train/val |
+| | `myai data list` / `info` | View registered datasets, sample counts, and quality metrics |
+| **Models** | `myai model list` | Browse hierarchical model catalog (Dense, MoE, CPU cores, VRAM) |
+| | `myai model use <id>` | Explicitly select active base model for the project |
+| | `myai recommend` | Hardware- and goal-aware recommendation with 8-factor scoring |
+| **Training** | `myai train` | Train model with live loss curves and progress telemetry |
+| | `myai train --stream-layers` | **Layer Streaming**: Fine-tune 8B model on 4GB VRAM GPU |
+| | `myai train --task <method>` | Train preference alignment (**DPO, ORPO, SimPO, KTO**) |
+| **Alignment** | `myai reward synth` | Synthesize calibrated deterministic Python verifiers from references |
+| | `myai ship` | **Ship Gate**: 4-suite Leg-2 offline regression gate for SHIP verdict |
+| | `myai merge` | Merge LoRA adapter weights directly into base model weights |
+| **Tracking** | `myai runs list` / `info <id>` | List historical training runs and metric breakdowns |
+| | `myai runs best` | View experiment leaderboard and current Release Candidate |
+| | `myai optimize` | Autonomous retrain/compare hyperparameter optimization loop |
+| **Export** | `myai export [--format]` | Package as standalone Web App ZIP, **GGUF (Ollama)**, or Merged weights |
+| **Serving** | `myai serve` / `myai ask` | Serve local model with Knowledge Gate RAG protection |
+
+---
+
+## 🧪 Automated Test Suite
+
+MYAI is verified by **209 automated unit and integration test suites** (`100% pass rate`):
 
 ```bash
-# Run all tests
+# Run the complete test suite
 pytest -v
 
 # Run the dedicated 42-point security and reliability audit
 pytest tests/test_security_audit.py -v
 
-# Run the Soup-inspired capabilities test suite
+# Run the 15-point hardware intelligence and memory calculator tests
+pytest tests/test_hardware_catalog.py -v
+
+# Run the post-training alignment and layer streaming test suite
 pytest tests/test_soup_features.py -v
 ```
 
 ```text
-============================ 203 passed in 12.01s =============================
+============================ 209 passed in 15.65s =============================
 ```
 
 ---
