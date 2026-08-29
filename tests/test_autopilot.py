@@ -139,11 +139,13 @@ training:
         self.assertIn("5 ep", strat_stage.summary)
 
     def test_cli_auto_help(self):
+        import re
         runner = CliRunner()
         result = runner.invoke(app, ["auto", "--help"])
         self.assertEqual(result.exit_code, 0)
-        self.assertIn("Goal-to-deployment autonomous build", result.stdout)
-        self.assertIn("--dry-run", result.stdout)
-        self.assertIn("--export", result.stdout)
-        self.assertIn("--model", result.stdout)
-        self.assertIn("--override", result.stdout)
+        clean_stdout = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", result.stdout)
+        self.assertIn("Goal-to-deployment autonomous build", clean_stdout)
+        self.assertIn("--dry-run", clean_stdout)
+        self.assertIn("--export", clean_stdout)
+        self.assertIn("--model", clean_stdout)
+        self.assertIn("--override", clean_stdout)

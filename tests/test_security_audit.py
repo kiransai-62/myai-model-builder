@@ -109,11 +109,13 @@ class TestCLISecurity(unittest.TestCase):
             self.assertNotEqual(r.exit_code, 0)
 
     def test_cli_auto_help(self):
+        import re
         r = runner.invoke(app, ["auto", "--help"])
         self.assertEqual(r.exit_code, 0)
-        self.assertIn("--dry-run", r.stdout)
-        self.assertIn("--model", r.stdout)
-        self.assertIn("--override", r.stdout)
+        clean_stdout = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", r.stdout)
+        self.assertIn("--dry-run", clean_stdout)
+        self.assertIn("--model", clean_stdout)
+        self.assertIn("--override", clean_stdout)
 
     def test_cli_status_help(self):
         r = runner.invoke(app, ["status", "--help"])
@@ -125,9 +127,11 @@ class TestCLISecurity(unittest.TestCase):
         self.assertIn("CPU", r.stdout)
 
     def test_cli_optimize_help(self):
+        import re
         r = runner.invoke(app, ["optimize", "--help"])
         self.assertEqual(r.exit_code, 0)
-        self.assertIn("--dry-run", r.stdout)
+        clean_stdout = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", r.stdout)
+        self.assertIn("--dry-run", clean_stdout)
 
     def test_cli_runs_best_help(self):
         r = runner.invoke(app, ["runs", "best", "--help"])

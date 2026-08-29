@@ -125,9 +125,11 @@ class TestOptimizerEngine(unittest.TestCase):
         self.assertFalse(report.steps[1].promoted)
 
     def test_cli_optimize_help(self):
+        import re
         runner = CliRunner()
         result = runner.invoke(app, ["optimize", "--help"])
         self.assertEqual(result.exit_code, 0)
-        self.assertIn("--max-iters", result.stdout)
-        self.assertIn("--min-delta", result.stdout)
-        self.assertIn("--dry-run", result.stdout)
+        clean_stdout = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", result.stdout)
+        self.assertIn("--max-iters", clean_stdout)
+        self.assertIn("--min-delta", clean_stdout)
+        self.assertIn("--dry-run", clean_stdout)
