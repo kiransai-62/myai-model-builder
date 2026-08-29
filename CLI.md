@@ -63,17 +63,17 @@ Initializes a new MYAI project directory and conducts an interactive **Goal Prof
 myai init [PROJECT_NAME]
 ```
 
-#### Arguments & Options
+**Arguments:**
 
-* `PROJECT_NAME` *(Optional)*: Name of the project directory to create. If omitted, defaults to `my-model`.
+- `PROJECT_NAME` *(Optional)*: Name of the project directory to create. If omitted, defaults to `my-model`.
 
-#### Example
+**Example:**
 
 ```bash
 myai init fittrack-coach
 ```
 
-#### Interactive Interview Prompts
+**Interactive Interview Prompts:**
 
 ```text
 1. What is the primary task of this AI?
@@ -98,13 +98,13 @@ Inspects the current project's lifecycle state, attached dataset, trained model 
 myai status
 ```
 
-#### Lifecycle States
+**Lifecycle States:**
 
-* `INITIALIZED`: Project created, awaiting dataset registration.
-* `DATA_READY`: Dataset validated, cleaned, and attached.
-* `TRAINED`: At least one training run completed.
-* `OPTIMIZED`: Optimizer loop executed and evaluated.
-* `EXPORTED`: Release candidate validated and packaged into standalone ZIP.
+- `INITIALIZED`: Project created, awaiting dataset registration.
+- `DATA_READY`: Dataset validated, cleaned, and attached.
+- `TRAINED`: At least one training run completed.
+- `OPTIMIZED`: Optimizer loop executed and evaluated.
+- `EXPORTED`: Release candidate validated and packaged into standalone ZIP.
 
 ---
 
@@ -118,12 +118,12 @@ Scans local hardware (CPU cores, RAM, NVIDIA GPU, VRAM, disk space) and runs a l
 myai system check
 ```
 
-#### Compute Tiers
+**Compute Tiers:**
 
-* `T0`: Pure CPU / Low RAM (< 8 GB) — ultra-compact model execution.
-* `T1`: Standard CPU (8–16+ GB RAM) — CPU-quantized fine-tuning.
-* `T2`: Mid-tier GPU (4–8 GB VRAM) — 4-bit QLoRA fine-tuning.
-* `T3`: High-tier GPU (12–24+ GB VRAM) — 4-bit/8-bit/16-bit LoRA fine-tuning.
+- `T0`: Pure CPU / Low RAM (< 8 GB) — ultra-compact model execution.
+- `T1`: Standard CPU (8–16+ GB RAM) — CPU-quantized fine-tuning.
+- `T2`: Mid-tier GPU (4–8 GB VRAM) — 4-bit QLoRA fine-tuning.
+- `T3`: High-tier GPU (12–24+ GB VRAM) — 4-bit/8-bit/16-bit LoRA fine-tuning.
 
 ---
 
@@ -137,12 +137,12 @@ Registers a local dataset in **Strict Reference Mode** (the original source file
 myai data add <PATH> [OPTIONS]
 ```
 
-#### Options
+**Options:**
 
-* `--model, -m TEXT`: Target base model for model-aware tokenization (default: `Qwen/Qwen2.5-1.5B-Instruct`).
-* `--yes, -y`: Automatically accept confirmation prompts.
+- `--model, -m TEXT`: Target base model for model-aware tokenization (default: `Qwen/Qwen2.5-1.5B-Instruct`).
+- `--yes, -y`: Automatically accept confirmation prompts.
 
-#### Example
+**Example:**
 
 ```bash
 myai data add "./data/fitness_conversations.jsonl" --model "meta-llama/Llama-3.2-3B-Instruct"
@@ -158,14 +158,14 @@ Runs a deep **Tokenizer Analysis** on a file, folder, or registered dataset. Com
 myai data tokenize [OPTIONS]
 ```
 
-#### Options
+**Options:**
 
-* `--path, -p PATH`: Direct path to a file or folder (`.json`, `.jsonl`, `.csv`, `.txt`).
-* `--dataset, -d TEXT`: Dataset ID registered in the project.
-* `--model, -m TEXT`: Target model repo ID or shorthand name.
-* `--refresh, -r`: Invalidate cache and force a fresh tokenization run.
+- `--path, -p PATH`: Direct path to a file or folder (`.json`, `.jsonl`, `.csv`, `.txt`).
+- `--dataset, -d TEXT`: Dataset ID registered in the project.
+- `--model, -m TEXT`: Target model repo ID or shorthand name.
+- `--refresh, -r`: Invalidate cache and force a fresh tokenization run.
 
-#### Example
+**Example:**
 
 ```bash
 myai data tokenize --path "./dataset.jsonl" --model "Qwen/Qwen2.5-1.5B-Instruct"
@@ -181,11 +181,11 @@ Cleans and prepares data in **Strict Reference Mode**. Redacts PII/secrets, dedu
 myai data clean [OPTIONS]
 ```
 
-#### Options
+**Options:**
 
-* `--fuzzy / --no-fuzzy`: Enable fuzzy deduplication using string similarity metrics (default: `True`).
-* `--val-split FLOAT`: Fraction of dataset reserved for validation (default: `0.1`).
-* `--seed INTEGER`: Random seed for deterministic reproducibility (default: `42`).
+- `--fuzzy / --no-fuzzy`: Enable fuzzy deduplication using string similarity metrics (default: `True`).
+- `--val-split FLOAT`: Fraction of dataset reserved for validation (default: `0.1`).
+- `--seed INTEGER`: Random seed for deterministic reproducibility (default: `42`).
 
 ---
 
@@ -229,9 +229,9 @@ Cross-references your project's **Goal Profile**, available **Hardware Tier**, a
 myai recommend [OPTIONS]
 ```
 
-#### Options
+**Options:**
 
-* `--json`: Output raw recommendation metadata in JSON format.
+- `--json`: Output raw recommendation metadata in JSON format.
 
 ---
 
@@ -245,19 +245,19 @@ Launches the interactive 5-step training wizard or runs scripted fine-tuning wit
 myai train [OPTIONS]
 ```
 
-#### Options
+**Options:**
 
-* `--data, -d PATH`: Skip Step 1 by providing the data path directly.
-* `--model, -m TEXT`: Explicitly specify the base model ID.
-* `--epochs, -e INTEGER`: Number of training epochs (default: `3`).
-* `--lr FLOAT`: Learning rate (e.g. `2e-4`).
-* `--batch-size, -b INTEGER`: Per-device batch size.
-* `--method TEXT`: Fine-tuning method (`lora` or `qlora`).
-* `--auto, -a`: Launch full autonomous build (Autopilot mode).
-* `--dry-run`: Preview training parameters and feasibility without executing.
-* `--yes, -y`: Accept confirmation prompts automatically.
+- `--data, -d PATH`: Skip Step 1 by providing the data path directly.
+- `--model, -m TEXT`: Explicitly specify the base model ID.
+- `--epochs, -e INTEGER`: Number of training epochs (default: `3`).
+- `--lr FLOAT`: Learning rate (e.g. `2e-4`).
+- `--batch-size, -b INTEGER`: Per-device batch size.
+- `--method TEXT`: Fine-tuning method (`lora` or `qlora`).
+- `--auto, -a`: Launch full autonomous build (Autopilot mode).
+- `--dry-run`: Preview training parameters and feasibility without executing.
+- `--yes, -y`: Accept confirmation prompts automatically.
 
-#### Example
+**Example:**
 
 ```bash
 myai train --epochs 3 --lr 0.0002 --method qlora
@@ -307,13 +307,13 @@ Analyzes metric deficiencies in the current Release Candidate, prescribes minima
 myai optimize [OPTIONS]
 ```
 
-#### Options
+**Options:**
 
-* `--max-iters INTEGER`: Maximum optimization rounds (default: `2`).
-* `--min-delta FLOAT`: Minimum composite score improvement required to promote a run (default: `1.0`).
-* `--dry-run`: Preview diagnostic mutations without running training.
+- `--max-iters INTEGER`: Maximum optimization rounds (default: `2`).
+- `--min-delta FLOAT`: Minimum composite score improvement required to promote a run (default: `1.0`).
+- `--dry-run`: Preview diagnostic mutations without running training.
 
-#### Example
+**Example:**
 
 ```bash
 myai optimize --max-iters 3 --min-delta 2.0
@@ -333,15 +333,15 @@ $$\text{Goal} \rightarrow \text{Hardware} \rightarrow \text{Data} \rightarrow \t
 myai auto [OPTIONS]
 ```
 
-#### Options
+**Options:**
 
-* `--export / --no-export`: Automatically package the release candidate through the 18-point Security Gate upon completion (default: `True`).
-* `--dry-run`: Validate the end-to-end plan and print stages without modifying state or training.
-* `--model, -m TEXT`: Override the recommended base model.
-* `--opt-iters INTEGER`: Maximum optimizer iterations (default: `2`).
-* `--override, -o KEY=VALUE`: Strategy overrides (e.g. `-o epochs=5 -o lr=1e-4`).
+- `--export / --no-export`: Automatically package the release candidate through the 18-point Security Gate upon completion (default: `True`).
+- `--dry-run`: Validate the end-to-end plan and print stages without modifying state or training.
+- `--model, -m TEXT`: Override the recommended base model.
+- `--opt-iters INTEGER`: Maximum optimizer iterations (default: `2`).
+- `--override, -o KEY=VALUE`: Strategy overrides (e.g. `-o epochs=5 -o lr=1e-4`).
 
-#### Example
+**Example:**
 
 ```bash
 myai auto --export
@@ -359,13 +359,13 @@ Packages the active Release Candidate through the **18-Point Containment & Secur
 myai export [OPTIONS]
 ```
 
-#### Options
+**Options:**
 
-* `--run, -r TEXT`: Specify a run ID to export (default: active Release Candidate).
-* `--output, -o PATH`: Output directory or filename for the `.zip` package.
-* `--yes, -y`: Automatically confirm export.
+- `--run, -r TEXT`: Specify a run ID to export (default: active Release Candidate).
+- `--output, -o PATH`: Output directory or filename for the `.zip` package.
+- `--yes, -y`: Automatically confirm export.
 
-#### Example
+**Example:**
 
 ```bash
 myai export --output ./dist/fitness-coach.myai.zip
@@ -383,11 +383,11 @@ Launches a local HTTP inference server for your trained model with **Knowledge G
 myai serve [OPTIONS]
 ```
 
-#### Options
+**Options:**
 
-* `--port, -p INTEGER`: Server port (default: `8000`).
-* `--host TEXT`: Host binding address (default: `127.0.0.1`).
-* `--gate / --no-gate`: Enable Knowledge Gate RAG validation (default: `True`).
+- `--port, -p INTEGER`: Server port (default: `8000`).
+- `--host TEXT`: Host binding address (default: `127.0.0.1`).
+- `--gate / --no-gate`: Enable Knowledge Gate RAG validation (default: `True`).
 
 ---
 

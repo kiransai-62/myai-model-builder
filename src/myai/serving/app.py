@@ -1,41 +1,64 @@
+from __future__ import annotations
+
 import time
-from fastapi import FastAPI, HTTPException  # type: ignore[import-not-found]
-from fastapi.responses import StreamingResponse  # type: ignore[import-not-found]
-from fastapi.middleware.cors import CORSMiddleware  # type: ignore[import-not-found]
-from pydantic import BaseModel, Field
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Any
 from pathlib import Path
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI  # type: ignore
+    from fastapi.responses import StreamingResponse  # type: ignore
+    from fastapi.middleware.cors import CORSMiddleware  # type: ignore
+    from pydantic import BaseModel, Field  # type: ignore
+
+try:
+    from fastapi import FastAPI, HTTPException  # type: ignore[import-not-found]
+    from fastapi.responses import StreamingResponse  # type: ignore[import-not-found]
+    from fastapi.middleware.cors import CORSMiddleware  # type: ignore[import-not-found]
+    from pydantic import BaseModel, Field
+    HAS_FASTAPI = True
+except ImportError:
+    HAS_FASTAPI = False
 
 from .runtime import MyAIRuntime, InferenceRequest, InferenceResponse
 from ..core.config import ProjectConfig
 
-class AskRequest(BaseModel):
-    query: str = Field(..., description="The question to ask")
-    temperature: float = Field(0.7, ge=0.0, le=2.0, description="Sampling temperature")
-    max_tokens: int = Field(256, ge=1, le=1024, description="Maximum tokens to generate")
+if HAS_FASTAPI:
+    class AskRequest(BaseModel):  # type: ignore
+        query: str = Field(..., description="The question to ask")
+        temperature: float = Field(0.7, ge=0.0, le=2.0, description="Sampling temperature")
+        max_tokens: int = Field(256, ge=1, le=1024, description="Maximum tokens to generate")
 
-class AskResponse(BaseModel):
-    allowed: bool
-    score: float
-    answer: str
-    sources: list[str]
-    latency_ms: float
+    class AskResponse(BaseModel):  # type: ignore
+        allowed: bool
+        score: float
+        answer: str
+        sources: list[str]
+        latency_ms: float
 
-class HealthResponse(BaseModel):
-    status: str
-    model: str
-    knowledge_chunks: int
-    uptime_seconds: float
+    class HealthResponse(BaseModel):  # type: ignore
+        status: str
+        model: str
+        knowledge_chunks: int
+        uptime_seconds: float
 
-class InfoResponse(BaseModel):
-    name: str
-    model_id: str
-    training_method: str
-    gate_threshold: float
-    version: str
+    class InfoResponse(BaseModel):  # type: ignore
+        name: str
+        model_id: str
+        training_method: str
+        gate_threshold: float
+        version: str
+
 
 def create_app(root: Path) -> FastAPI:
     """Create FastAPI app with runtime."""
+    if not HAS_FASTAPI:
+        raise ImportError(
+            "Serving dependencies are missing. Please install them with:\n"
+            "  pip install 'myai[serve]'\n"
+            "or\n"
+            "  pip install fastapi uvicorn"
+        )
+
     app = FastAPI(
         title="MYAI Runtime",
         description="Local-first AI model serving API",

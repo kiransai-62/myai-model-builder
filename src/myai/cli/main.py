@@ -1,11 +1,11 @@
 import typer
 from .init_cmd import init
 from .system_cmd import check, benchmark
-from .data_cmd import add, list_datasets, info, validate, prepare, tokenize
+from .data_cmd import add, list_datasets, info, validate, prepare, clean, tokenize
 from .model_cmd import list_models, add as add_model, use as use_model, list_trained, use_trained
 from .recommend_cmd import recommend
 from .train_cmd import train
-from .index_cmd import build as build_index
+from .index_cmd import build as build_index, add_document, list_indexes
 from .export_cmd import export
 from .ask_cmd import ask
 from .serve_cmd import serve
@@ -28,6 +28,7 @@ app.command("export")(export)
 app.command("ask")(ask)
 app.command("serve")(serve)
 app.command("evaluate")(evaluate)
+app.command("leaderboard")(runs_best)
 
 data_app = typer.Typer(help="Data operations")
 data_app.command("add")(add)
@@ -35,6 +36,7 @@ data_app.command("list")(list_datasets)
 data_app.command("info")(info)
 data_app.command("validate")(validate)
 data_app.command("prepare")(prepare)
+data_app.command("clean")(clean)
 data_app.command("tokenize")(tokenize)
 app.add_typer(data_app, name="data")
 
@@ -53,7 +55,10 @@ app.add_typer(system_app, name="system")
 
 index_app = typer.Typer(help="Knowledge index operations")
 index_app.command("build")(build_index)
+index_app.command("add")(add_document)
+index_app.command("list")(list_indexes)
 app.add_typer(index_app, name="index")
+
 
 runs_app = typer.Typer(help="Training run provenance")
 runs_app.command("list")(list_runs)

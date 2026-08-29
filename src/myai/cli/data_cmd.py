@@ -272,4 +272,7 @@ def prepare(
 
     report = prepare_datasets(sources, root, val_split=val_split, fuzzy_dedup=fuzzy)
     report.print_report()
-    console.print(f"[green]✨ Processed datasets saved to data/train.jsonl and data/validation.jsonl[/green]\n")
+    console.print(f"[green]✨ Processed datasets saved to data/train.jsonl and data/validation.jsonl[/green]\n")
+
+clean = prepare
+

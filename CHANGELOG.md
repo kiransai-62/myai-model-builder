@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.1.0] - 2026-08-30
 
 ### Added
+
 - **Goal Understanding (Stage A)**: Interactive Goal Profile interview & domain-weighted composite evaluation formulas.
 - **Dataset Intelligence & Cleaning (Stage B)**: Strict Reference Mode reader, PII & credential scrubbing, exact/fuzzy deduplication, train/val contamination isolation.
 - **Model-Aware Tokenizer Engine**: Streaming record tokenizer, calibrated offline fallback, 7 distribution buckets, and context-window fit vs. overflow analyzer.
