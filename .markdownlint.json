@@ -1,0 +1,26 @@
+{
+  "default": true,
+  "MD033": {
+    "allowed_elements": [
+      "p",
+      "h1",
+      "h2",
+      "h3",
+      "a",
+      "img",
+      "strong",
+      "em",
+      "br",
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td"
+    ]
+  },
+  "MD013": false,
+  "MD024": {
+    "siblings_only": true
+  }
+}
