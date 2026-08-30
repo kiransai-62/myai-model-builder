@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="#-installation">Installation</a> &middot;
   <a href="#-quickstart-in-3-commands">Quickstart</a> &middot;
   <a href="#-why-myai">Why MYAI?</a> &middot;
   <a href="#-key-capabilities">Capabilities</a> &middot;
@@ -21,6 +22,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/kiransai-62/myai/actions/workflows/test.yml"><img src="https://github.com/kiransai-62/myai/actions/workflows/test.yml/badge.svg" alt="CI Tests"></a>
   <a href="https://github.com/kiransai-62/myai"><img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green.svg" alt="License"></a>
   <a href="docs/hardware_catalog.md"><img src="https://img.shields.io/badge/hardware-tier%20matrix-blueviolet" alt="Hardware Intelligence"></a>
@@ -34,6 +36,38 @@
 Tell MYAI what AI you want. MYAI analyzes your **goal**, your **hardware**, and your **data** — then helps build, evaluate, optimize, and package your custom model into a standalone, portable runtime with its own Web & CLI Chat UI, or exports it to GGUF format for Ollama and `llama.cpp`.
 
 > **No cloud GPUs required. Local data privacy. No framework lock-in.**
+
+---
+
+## 📦 Installation
+
+Clone the repository and install MYAI with the required dependency extras:
+
+```bash
+# Clone the repository
+git clone https://github.com/kiransai-62/myai.git
+cd myai
+
+# Basic installation (editable mode)
+pip install -e .
+
+# Recommended: includes test suite, local serving API, and evaluation metrics
+pip install -e ".[dev,serving,eval]"
+
+# Full installation: adds PyTorch/Transformers/PEFT training & Hugging Face models
+pip install -e ".[dev,serving,eval,train,models,retrieval]"
+```
+
+### Dependency Groups
+
+| Group | Key Dependencies | Purpose |
+| :--- | :--- | :--- |
+| `dev` | `pytest`, `httpx` | Running test suites and security audit checks |
+| `serving` / `serve` | `fastapi`, `uvicorn`, `pydantic`, `requests`, `httpx` | Local-first REST and SSE streaming inference server (`myai serve`) |
+| `eval` | `textstat`, `nltk`, `rouge-score` | Quality scoring, linguistic readability, and evaluation metrics |
+| `train` | `torch`, `transformers`, `peft`, `bitsandbytes`, `accelerate` | LoRA / QLoRA fine-tuning and layer streaming |
+| `models` | `huggingface_hub` | Base model downloading and registry access |
+| `retrieval` | `sentence-transformers` | Semantic search and embedding-based knowledge indexes |
 
 ---
 
@@ -307,12 +341,16 @@ Artifacts produced by `myai export` follow strict automated packaging and contai
 | **Training** | `myai train` | Train model with live loss curves and progress telemetry |
 | | `myai train --stream-layers` | Train on resource-constrained GPUs using memory streaming |
 | | `myai train --task <method>` | Train preference alignment (**DPO, ORPO, SimPO, KTO**) |
+| **Evaluation** | `myai evaluate` | Run offline task evaluation benchmarks and accuracy metrics |
+| | `myai leaderboard` | Show experiment leaderboard ranked by goal-weighted composite score |
 | **Alignment** | `myai reward synth` | Generate task-specific verifiers from reference datasets |
 | | `myai ship` | Run regression gate and test suites for release verdict |
 | | `myai merge` | Merge adapter weights into base model checkpoint |
 | **Tracking** | `myai runs list` / `info <id>` | List historical training runs and metric summaries |
 | | `myai runs best` | View experiment leaderboard and current release candidate |
 | | `myai optimize` | Automated retrain and compare hyperparameter optimization loop |
+| **Knowledge** | `myai index build <path>` | Index local documents into semantic embeddings for RAG retrieval |
+| | `myai index list` / `info` | Inspect active knowledge index chunks and embedding dimensions |
 | **Export** | `myai export [--format]` | Package as standalone Web App ZIP, **GGUF (Ollama)**, or Merged weights |
 | **Serving** | `myai serve` / `myai ask` | Serve local model with Knowledge Gate RAG protection |
 
