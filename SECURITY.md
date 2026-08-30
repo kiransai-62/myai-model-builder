@@ -6,59 +6,49 @@ Security updates and patches are provided for the latest active release line. We
 
 | Version | Supported          | Status |
 | ------- | ------------------ | ------ |
-| 0.1.x   | :white_check_mark: | Active production release line |
+| 0.1.x   | :white_check_mark: | Active release line |
 | < 0.1   | :x:                | Unsupported |
 
 ---
 
 ## 🔒 Core Security Invariants
 
-MYAI is engineered from the ground up to be **100% local-first, privacy-preserving, and air-gapped**. We enforce four immutable security invariants across every subsystem:
+MYAI is engineered from the ground up to be **local-first and privacy-preserving**. We design around four core security invariants across every subsystem:
 
-1. **Zero External Data Leakage**: All data processing, tokenization, training, evaluation, and inference execute entirely on your local machine. No telemetry, crash reporting, or external API calls are made without explicit user action.
-2. **Strict Reference Mode**: MYAI treats user raw datasets as strictly immutable. Source files are read in-place and **never modified, deleted, or relocated** ($MD5_{\text{before}} = MD5_{\text{after}}$).
-3. **Automated Secret & PII Sanitization**: The dataset cleaner continuously scans and redacts API keys (`sk-`, `ghp_`, `hf_`, `AKIA`), credentials, emails, and phone numbers before training tokens are processed.
-4. **18-Point Containment Gate**: Every model export is validated through an automated 18-point verification gate before any ZIP archive is written to disk.
+1. **Local Compute Execution**: Data processing, tokenization, training, evaluation, and inference execute on your local machine without mandatory cloud connections or remote telemetry.
+2. **Strict Reference Mode**: MYAI treats user raw datasets as strictly immutable. Source files are read in-place and never altered or deleted.
+3. **Automated Secret & PII Sanitization**: The dataset cleaner scans and redacts API keys (`sk-`, `ghp_`, `hf_`, `AKIA`), credentials, emails, and phone numbers before training tokens are processed.
+4. **Export Containment Gate**: Model exports are validated through automated verification checks before any archive is written to disk.
 
 ---
 
-## 🚪 The 18-Point Containment & Security Gate
+## 🚪 Export Containment & Security Gate
 
-Before packaging any model into a standalone archive, MYAI runs 18 automated security checks:
+Before packaging any model into a standalone archive, MYAI runs automated containment checks:
 
-| # | Security Check | Policy / Requirement |
+| Category | Security / Policy Check | Requirement |
 | --- | --- | --- |
-| **1** | **Archive Integrity** | Verified non-corrupt ZIP header and table of contents. |
-| **2** | **Model Weights** | Valid adapter binaries and configuration present in `model/`. |
-| **3** | **Tokenizer Vocab** | Tokenizer configuration and vocabulary files verified. |
-| **4** | **Provenance Metadata** | `metadata.json` records base model repo and goal intent. |
-| **5** | **Evaluation Report** | `evaluation.json` contains verified goal-weighted metrics. |
-| **6** | **Standalone Documentation** | Embedded `README.md` with instructions for zero-dependency execution. |
-| **7** | **Zero-Framework Loader** | Self-contained `loader.py` Python inference script. |
-| **8** | **Embedded Chat UI** | Built-in Luminous Web & CLI Chat runtime (`chat/app.py`, `chat/web/`). |
-| **9** | **Source Code Isolation** | 🚫 **Zero MYAI framework source code** (`src/`, `myai/`) allowed in package. |
-| **10** | **Version Control Isolation** | 🚫 **Zero `.git/` directories** or commit histories included. |
-| **11** | **Environment Isolation** | 🚫 **Zero `.env` or system environment files** packaged. |
-| **12** | **Secret Scrubbing** | 🚫 **Zero API keys** (`sk-`, `ghp_`, `hf_`, `AKIA`) in metadata or configs. |
-| **13** | **Dataset Privacy** | 🚫 **Zero raw training datasets** (`.jsonl`, `.csv`, `.parquet`, `.txt`) included. |
-| **14** | **Model Isolation** | 🚫 **Zero unrelated model checkpoints** or foreign weights. |
-| **15** | **Cache Cleanliness** | 🚫 **Zero `__pycache__`**, `.pyc`, `.DS_Store`, or temporary files. |
-| **16** | **Host Path Privacy** | 🚫 **Zero absolute host filesystem paths** exposed in metadata. |
-| **17** | **Path Traversal Protection** | 🚫 **Zero path traversal entries** (`../` or leading slashes) in archive members. |
-| **18** | **Atomic Generation** | Package assembled in isolated staging directory and validated before release. |
+| **Integrity** | Archive Integrity | Verified non-corrupt ZIP header and structure |
+| **Artifacts** | Model Weights & Tokenizer | Valid adapter weights, configuration, and tokenizer vocabulary files |
+| **Provenance** | Provenance Manifest & Audit | `metadata.json` and `evaluation.json` record training configuration and evaluation scores |
+| **Runtime** | Portable Loader & Chat UI | Self-contained Python loader and zero-dependency Luminous Web Chat runtime |
+| **Containment** | Source & Version Control Isolation | Excludes internal framework source code (`src/`, `myai/`) and `.git/` histories |
+| **Security** | Environment & Secret Isolation | Excludes `.env` files and redacts API keys (`sk-`, `ghp_`, `hf_`, `AKIA`) |
+| **Privacy** | Dataset Privacy | Excludes raw training datasets (`.jsonl`, `.csv`, `.parquet`, `.txt`) from deployment packages |
+| **Hygiene** | Cache & Path Privacy | Cleans temporary cache files (`__pycache__`) and prevents absolute host paths or traversal entries |
 
 ---
 
 ## 🎯 Threat Model & Scope
 
-MYAI is an air-gapped, local-first CLI and runtime. The threat model assumes the operator executes MYAI on their own machine with their own private datasets.
+MYAI is designed for local-first developer execution. The threat model assumes the operator executes MYAI on their own machine with their own private datasets.
 
 ### In-Scope Security Vulnerabilities
 - **Path Traversal & Arbitrary File Access**: Vulnerabilities allowing unintended reads/writes from user-supplied dataset paths, configuration YAMLs, or exported archive extractions.
-- **Secret & PII Leakage**: Accidental exposure of API tokens, SSH keys, credentials, or private data in logs, training checkpoints, provenance receipts, or export packages.
+- **Secret & PII Exposure**: Accidental exposure of API tokens, credentials, or private data in logs, training checkpoints, provenance receipts, or export packages.
 - **Injection Attacks**: Command injection, Ollama Modelfile injection, Jinja chat-template injection, or shell metacharacter manipulation via CLI flags or config fields.
-- **Safe Code Execution / Reward Sandbox Escape**: Any arbitrary code execution in reward verifier synthesis (`myai reward synth`), ensuring all verifiers remain purely deterministic without unsafe dynamic evaluation.
-- **Resource Exhaustion & Memory Safety**: Predictable CUDA OOM crashes or uncontrolled disk allocation circumventing feasibility and storage budget guards.
+- **Safe Execution Sandbox**: Ensuring reward verifier synthesis and execution remain strictly deterministic and safe.
+- **Resource Exhaustion & Memory Safety**: Predictable memory allocation avoiding uncontrolled disk or memory exhaustion.
 
 ### Out-of-Scope
 - Vulnerabilities in third-party model weights or untrusted datasets explicitly downloaded by the operator from upstream external sources.
