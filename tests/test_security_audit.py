@@ -1101,5 +1101,452 @@ class TestEndToEndGolden(unittest.TestCase):
             self.assertIn("Dry-run", stage_names)
 
 
+# ═══════════════════════════════════════════════════════════════════
+# §43  SERVING API — AUTHENTICATION, CORS, RATE LIMITING, SAFE FALLBACK
+# ═══════════════════════════════════════════════════════════════════
+
+class TestServingAPISecurity(unittest.TestCase):
+    """Tests for serving API authentication, CORS policy, rate limiting,
+    query bounds, concurrency guard, and safe fallback behaviour.
+
+    All tests use FastAPI TestClient with a mocked runtime — no GPU required.
+    """
+
+    def _make_mock_runtime(self, model_loaded: bool = True):
+        """Return a MyAIRuntime mock configured with or without a model."""
+        from myai.serving.runtime import InferenceResponse
+        from unittest.mock import MagicMock
+
+        mock_runtime = MagicMock()
+        mock_runtime.model_loaded = model_loaded
+        mock_runtime.gate = MagicMock()
+        mock_runtime.gate.chunks = [{"id": "c1", "text": "chunk one", "embedding": [1.0, 0.0]}]
+
+        # ask() always returns a valid InferenceResponse
+        mock_runtime.ask.return_value = InferenceResponse(
+            allowed=True, score=0.9, answer="Test answer.",
+            sources=["c1"], latency_ms=5.0,
+        )
+
+        # stream_answer() yields SSE tokens
+        def _fake_stream(req):
+            yield "data: hello\n\n"
+            yield "data: world\n\n"
+            yield "data: [DONE]\n\n"
+
+        mock_runtime.stream_answer.side_effect = _fake_stream
+        return mock_runtime
+
+    def _build_app(self, api_key=None, model_loaded=True, max_concurrent=2, rate_limit=60):
+        """Build a FastAPI test app with mocked runtime."""
+        try:
+            from fastapi.testclient import TestClient
+            from myai.serving.app import create_app
+        except ImportError:
+            self.skipTest("FastAPI / httpx not installed — serving tests skipped")
+
+        import tempfile, pathlib
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            # Minimal project config
+            (root / "myai.yaml").write_text(
+                "project:\n  name: test\ngoal:\n  task: chat\n  domain: general\n"
+                "model:\n  id: test-model\ntraining:\n  method: qlora\ngate:\n  threshold: 0.5\n  top_k: 3\n",
+                encoding="utf-8"
+            )
+            # Create a stub knowledge index
+            (root / "indexes").mkdir()
+            (root / "indexes" / "chunks.jsonl").write_text(
+                '{"id": "c1", "text": "hello world", "embedding": [1.0, 0.0]}\n',
+                encoding="utf-8"
+            )
+
+            mock_runtime = self._make_mock_runtime(model_loaded=model_loaded)
+
+            with patch("myai.serving.app.MyAIRuntime", return_value=mock_runtime), \
+                 patch.object(mock_runtime, "load", return_value=None):
+                app = create_app(
+                    root,
+                    api_key=api_key,
+                    max_concurrent=max_concurrent,
+                    rate_limit_per_min=rate_limit,
+                )
+        return app, mock_runtime
+
+    # ── Authentication ────────────────────────────────────────────────
+
+    def test_ask_requires_api_key_when_configured(self):
+        """401 is returned when an API key is configured but not supplied."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        app, _ = self._build_app(api_key="secret-key-123")
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post("/ask", json={"query": "hello"})
+        self.assertEqual(resp.status_code, 401)
+
+    def test_ask_accepts_valid_x_api_key_header(self):
+        """200 is returned when the correct X-API-Key header is supplied."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        app, _ = self._build_app(api_key="secret-key-123")
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post(
+            "/ask",
+            json={"query": "hello"},
+            headers={"X-API-Key": "secret-key-123"},
+        )
+        self.assertEqual(resp.status_code, 200)
+
+    def test_ask_accepts_valid_bearer_token(self):
+        """200 is returned when the correct Authorization: Bearer token is supplied."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        app, _ = self._build_app(api_key="bearer-token-xyz")
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post(
+            "/ask",
+            json={"query": "hello"},
+            headers={"Authorization": "Bearer bearer-token-xyz"},
+        )
+        self.assertEqual(resp.status_code, 200)
+
+    def test_ask_rejects_wrong_api_key(self):
+        """401 is returned when an incorrect API key is supplied."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        app, _ = self._build_app(api_key="correct-key")
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post(
+            "/ask",
+            json={"query": "hello"},
+            headers={"X-API-Key": "wrong-key"},
+        )
+        self.assertEqual(resp.status_code, 401)
+
+    def test_no_auth_in_dev_mode(self):
+        """200 is returned without any key when no key is configured (local dev mode)."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        app, _ = self._build_app(api_key=None)
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post("/ask", json={"query": "hello"})
+        self.assertEqual(resp.status_code, 200)
+
+    # ── CORS configuration ────────────────────────────────────────────
+
+    def test_cors_does_not_allow_wildcard_with_credentials(self):
+        """CORS should never combine allow_origins='*' with allow_credentials=True."""
+        from myai.serving.app import _resolve_allowed_origins
+        # Default mode: should return localhost origins, NOT a wildcard
+        origins = _resolve_allowed_origins()
+        if "*" in origins:
+            self.fail("allow_origins=['*'] must not be paired with credentials=True")
+        # All returned origins must reference localhost or loopback
+        for origin in origins:
+            self.assertTrue(
+                "localhost" in origin or "127.0.0.1" in origin,
+                f"Unexpected non-local origin in defaults: {origin}"
+            )
+
+    def test_cors_respects_env_var(self):
+        """MYAI_ALLOWED_ORIGINS env var controls allowed origins."""
+        import os
+        from myai.serving.app import _resolve_allowed_origins
+        with patch.dict(os.environ, {"MYAI_ALLOWED_ORIGINS": "https://myapp.example.com,https://other.com"}):
+            origins = _resolve_allowed_origins()
+        self.assertEqual(origins, ["https://myapp.example.com", "https://other.com"])
+
+    # ── Query size validation ─────────────────────────────────────────
+
+    def test_query_too_long_returns_422(self):
+        """Queries exceeding 8192 characters must be rejected with 422 Unprocessable Entity."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        app, _ = self._build_app()
+        client = TestClient(app, raise_server_exceptions=False)
+        oversized_query = "x" * 8193
+        resp = client.post("/ask", json={"query": oversized_query})
+        self.assertEqual(resp.status_code, 422)
+
+    def test_empty_query_returns_422(self):
+        """Empty queries (min_length=1) must be rejected with 422."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        app, _ = self._build_app()
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post("/ask", json={"query": ""})
+        self.assertEqual(resp.status_code, 422)
+
+    def test_max_boundary_query_accepted(self):
+        """Queries of exactly 8192 characters must succeed."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        app, _ = self._build_app()
+        client = TestClient(app, raise_server_exceptions=False)
+        boundary_query = "x" * 8192
+        resp = client.post("/ask", json={"query": boundary_query})
+        self.assertEqual(resp.status_code, 200)
+
+    # ── Concurrency semaphore ─────────────────────────────────────────
+
+    def test_concurrent_requests_beyond_limit_get_503(self):
+        """When max_concurrent=1, a second simultaneous request returns 503."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        import threading
+
+        app, mock_rt = self._build_app(max_concurrent=1)
+
+        t1_in_critical_section = threading.Event()
+        release_t1 = threading.Event()
+
+        def slow_ask(req):
+            t1_in_critical_section.set()
+            release_t1.wait(timeout=3)
+            from myai.serving.runtime import InferenceResponse
+            return InferenceResponse(
+                allowed=True, score=0.9, answer="ok",
+                sources=[], latency_ms=1.0,
+            )
+
+        mock_rt.ask.side_effect = slow_ask
+
+        client = TestClient(app, raise_server_exceptions=False)
+        results = []
+
+        def req_t1():
+            r = client.post("/ask", json={"query": "test"})
+            results.append(r.status_code)
+
+        def req_t2():
+            r = client.post("/ask", json={"query": "test"})
+            results.append(r.status_code)
+
+        t1 = threading.Thread(target=req_t1)
+        t2 = threading.Thread(target=req_t2)
+
+        # Start t1 and wait until it's inside the semaphore
+        t1.start()
+        t1_in_critical_section.wait(timeout=2)
+
+        # Start t2 while t1 is actively holding the semaphore
+        t2.start()
+        t2.join(timeout=2)
+
+        # Release t1
+        release_t1.set()
+        t1.join(timeout=2)
+
+        self.assertIn(200, results, "t1 should succeed")
+        self.assertIn(503, results, "t2 should be rejected with 503 while t1 holds the single slot")
+
+
+    # ── Rate limiting ─────────────────────────────────────────────────
+
+    def test_rate_limiter_allows_within_limit(self):
+        """Rate limiter should allow requests within its quota."""
+        from myai.serving.app import _RateLimiter
+        limiter = _RateLimiter(max_requests=3, window_seconds=60.0)
+        self.assertTrue(limiter.is_allowed("127.0.0.1"))
+        self.assertTrue(limiter.is_allowed("127.0.0.1"))
+        self.assertTrue(limiter.is_allowed("127.0.0.1"))
+
+    def test_rate_limiter_blocks_over_limit(self):
+        """Rate limiter blocks once per-IP quota is exceeded."""
+        from myai.serving.app import _RateLimiter
+        limiter = _RateLimiter(max_requests=2, window_seconds=60.0)
+        limiter.is_allowed("1.2.3.4")
+        limiter.is_allowed("1.2.3.4")
+        self.assertFalse(limiter.is_allowed("1.2.3.4"))
+
+    def test_rate_limiter_is_per_ip(self):
+        """Rate limiter does not conflate different client IPs."""
+        from myai.serving.app import _RateLimiter
+        limiter = _RateLimiter(max_requests=1, window_seconds=60.0)
+        limiter.is_allowed("1.1.1.1")  # exhaust ip1
+        self.assertFalse(limiter.is_allowed("1.1.1.1"))  # ip1 blocked
+        self.assertTrue(limiter.is_allowed("2.2.2.2"))   # ip2 unaffected
+
+    # ── Safe fallback — no raw knowledge chunk leaks ──────────────────
+
+    def test_ask_safe_fallback_no_raw_chunks_when_model_unavailable(self):
+        """When model is not loaded, /ask must NOT expose raw knowledge chunk content."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        # Override ask() to simulate retrieval-only (model_loaded=False) safe message
+        from myai.serving.runtime import InferenceResponse
+        app, mock_rt = self._build_app(model_loaded=False)
+        mock_rt.ask.return_value = InferenceResponse(
+            allowed=True, score=0.9,
+            answer="Model generation is currently unavailable. The runtime is operating in retrieval-only mode.",
+            sources=[],
+            latency_ms=1.0,
+        )
+
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post("/ask", json={"query": "hello"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        # The answer must NOT contain raw chunk content
+        self.assertNotIn("[Retrieved knowledge]", data["answer"])
+        self.assertNotIn("chunk one", data["answer"])
+        # Sources must be empty when in fallback mode
+        self.assertEqual(data["sources"], [])
+
+    def test_ask_stream_safe_fallback_no_raw_chunks(self):
+        """When model is not loaded, /ask-stream must NOT stream raw knowledge chunk content."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        app, mock_rt = self._build_app(model_loaded=False)
+
+        # Simulate safe stream fallback (no raw chunks)
+        def _safe_stream(req):
+            yield "data: Model generation is currently unavailable. The runtime is operating in retrieval-only mode.\n\n"
+            yield "data: [DONE]\n\n"
+
+        mock_rt.stream_answer.side_effect = _safe_stream
+
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post("/ask-stream", json={"query": "hello"})
+        self.assertEqual(resp.status_code, 200)
+        content = resp.text
+        # Must not expose internal retrieval content
+        self.assertNotIn("[Fallback retrieval]", content)
+        self.assertNotIn("[Model not loaded, falling back to retrieval]", content)
+        self.assertNotIn("chunk one", content)
+
+    # ── Health endpoint model status reporting ────────────────────────
+
+    def test_health_reports_model_loaded_true(self):
+        """Health endpoint correctly reports model_loaded=True and mode='inference'."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        app, _ = self._build_app(model_loaded=True)
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.get("/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("model_loaded", data)
+        self.assertIn("mode", data)
+        self.assertIn("status", data)
+
+    def test_health_reports_degraded_when_model_not_loaded(self):
+        """Health endpoint reports status='degraded' and mode='retrieval_only' when model is absent."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("FastAPI not installed")
+
+        app, mock_rt = self._build_app(model_loaded=False)
+        mock_rt.model_loaded = False
+
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.get("/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "degraded")
+        self.assertEqual(data["mode"], "retrieval_only")
+        self.assertFalse(data["model_loaded"])
+
+
+# ═══════════════════════════════════════════════════════════════════
+# §44  CLEANER — EXTENDED PII/SECRET SCRUBBING PATTERNS
+# ═══════════════════════════════════════════════════════════════════
+
+class TestExtendedPIIScrubbing(unittest.TestCase):
+    """Verify the extended PII_PATTERNS catch new credential types."""
+
+    def _scrub(self, text: str) -> str:
+        from myai.data.cleaner import _scrub_pii
+        result, _ = _scrub_pii(text)
+        return result
+
+    def test_openai_sk_token_scrubbed(self):
+        text = "key=sk-abcdefghijklmnopqrstuvwxyz1234"
+        result = self._scrub(text)
+        self.assertNotIn("sk-abcdefghijklmnopqrstuvwxyz1234", result)
+        self.assertIn("[SECRET_REDACTED]", result)
+
+    def test_anthropic_ant_token_scrubbed(self):
+        text = "token: ant-api01-abcdefghijklmnopqrstu12345"
+        result = self._scrub(text)
+        self.assertNotIn("ant-api01-", result)
+
+    def test_github_pat_scrubbed(self):
+        text = "GITHUB_TOKEN=ghp_ABCDefghIJKLmnopQRSTuvWX1234"
+        result = self._scrub(text)
+        self.assertNotIn("ghp_ABCDefghIJKLmnopQRSTuvWX1234", result)
+
+    def test_hf_token_scrubbed(self):
+        text = "hf_abcdefghijklmnopqrstuvwxyz12345"
+        result = self._scrub(text)
+        self.assertNotIn("hf_abcdefghijklmnopqrstuvwxyz12345", result)
+
+    def test_generic_api_key_value_scrubbed(self):
+        text = "api_key = supersecretapitoken1234567890"
+        result = self._scrub(text)
+        self.assertNotIn("supersecretapitoken1234567890", result)
+        self.assertIn("[CREDENTIAL_REDACTED]", result)
+
+    def test_jwt_token_scrubbed(self):
+        # Fake JWT-like structure (header.payload.signature)
+        fake_jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        result = self._scrub(fake_jwt)
+        self.assertIn("[JWT_REDACTED]", result)
+
+    def test_email_still_scrubbed(self):
+        text = "Contact us at user@example.com for help"
+        result = self._scrub(text)
+        self.assertNotIn("user@example.com", result)
+        self.assertIn("[EMAIL_REDACTED]", result)
+
+    def test_non_secret_text_unchanged(self):
+        text = "Hello, this is a normal sentence with no secrets."
+        result = self._scrub(text)
+        self.assertEqual(result, text)
+
+    def test_multiple_secrets_all_scrubbed(self):
+        text = "sk-abc123defghijklmnopqrstuv and hf_abc123defghijklmnopqrstuv are both leaked"
+        result = self._scrub(text)
+        self.assertNotIn("sk-abc123defghijklmnopqrstuv", result)
+        self.assertNotIn("hf_abc123defghijklmnopqrstuv", result)
+
+
 if __name__ == "__main__":
     unittest.main()

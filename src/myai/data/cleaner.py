@@ -24,9 +24,20 @@ from typing import Any, Dict, List, Set, Tuple
 
 # --- PII & Secret Regex Patterns ---
 PII_PATTERNS = [
+    # Email addresses
     (r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "[EMAIL_REDACTED]"),
-    (r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b", "[PHONE_REDACTED]"),
-    (r"\b(?:sk-|pk-|ghp_|AKIA|hf_)[A-Za-z0-9_\-]{16,}\b", "[SECRET_REDACTED]"),
+    # Phone numbers (E.164 and common North American formats)
+    (r"\b(?:\+?1[-.\\s]?)?\(?[0-9]{3}\)?[-.\\s]?[0-9]{3}[-.\\s]?[0-9]{4}\b", "[PHONE_REDACTED]"),
+    # OpenAI / Anthropic / HuggingFace / GitHub / AWS-AKIA style tokens
+    (r"\b(?:sk-|pk-|ant-|ghp_|gho_|ghu_|ghs_|ghr_|hf_|AKIA|ABIA|ACCA)[A-Za-z0-9_\-]{16,}\b", "[SECRET_REDACTED]"),
+    # AWS Secret Access Key (40 chars, base64)
+    (r"(?i)aws[_\-\s]?secret[_\-\s]?access[_\-\s]?key\s*[:=]\s*[A-Za-z0-9/+]{40}", "[SECRET_REDACTED]"),
+    # Generic key=value credential patterns (api_key, auth_token, access_token, secret_key, password)
+    (r"(?i)\b(?:api[_\-]?key|secret[_\-]?key|access[_\-]?token|auth[_\-]?token|passwd|password)\s*[:=]\s*['\"]?[A-Za-z0-9_.+/\-]{16,}['\"]?", "[CREDENTIAL_REDACTED]"),
+    # JWT Bearer tokens (three base64url segments separated by dots)
+    (r"\beyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\b", "[JWT_REDACTED]"),
+    # PEM private key headers (RSA, EC, PKCS8)
+    (r"-----BEGIN (?:RSA |EC |OPENSSH |PRIVATE KEY|ENCRYPTED PRIVATE KEY).*?PRIVATE KEY-----", "[PRIVATE_KEY_REDACTED]"),
 ]
 
 

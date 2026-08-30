@@ -169,7 +169,13 @@ def prompt_input():
         print(f"\\033[90m{' ' * pad}{mistake_msg}\\033[0m")
 
     try:
-        return input("> ").strip()
+        raw = input("> ").strip()
+        # Enforce query size limit to prevent tokenizer / memory exhaustion
+        MAX_QUERY_CHARS = 8192
+        if len(raw) > MAX_QUERY_CHARS:
+            print(f"\\033[33m[Notice] Input truncated to {MAX_QUERY_CHARS} characters.\\033[0m")
+            raw = raw[:MAX_QUERY_CHARS]
+        return raw
     except (EOFError, KeyboardInterrupt):
         return "/exit"
 '''

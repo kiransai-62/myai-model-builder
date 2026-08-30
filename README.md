@@ -1,4 +1,3 @@
-<!-- markdownlint-disable MD033 -->
 <p align="center">
   <img src="assets/myai-logo.png" alt="MYAI Logo - Build · Train · Evolve" width="340">
 </p>
@@ -106,29 +105,36 @@ graph TD
 ```
 
 ### 1. 🎯 Goal-Aligned Planning
+
 Define your AI's task and domain (`chat`, `code`, `domain-qa`, `summarization`, `extraction`, `reasoning`). MYAI tailors evaluation criteria so performance is measured directly against your specific objective.
 
 ### 2. 🧹 Dataset Intelligence & Strict Reference Mode
+
 * **Strict Reference Mode**: Original data files are **never modified in-place**.
 * **PII & Secret Scrubbing**: Automated detection and redaction of sensitive strings (emails, phone numbers, API keys).
 * **Deduplication**: Identifies and removes duplicate and near-duplicate samples.
 * **Leakage Detection**: Isolates train and validation sets before training begins.
 
 ### 3. 🔬 Token & Context Analysis
+
 * Computes token counts and sequence distributions across supported model families (Llama, Qwen, SmolLM).
 * Flags context length mismatches and memory considerations prior to training.
 
 ### 4. 🌊 Memory-Efficient Training
+
 Enables fine-tuning on resource-constrained GPUs via memory-optimized layer streaming.
 
 ### 5. 🧬 Post-Training Preference Alignment
+
 Fine-tune beyond standard supervised training with modern preference alignment algorithms:
+
 * **DPO** (Direct Preference Optimization)
 * **ORPO** (Odds Ratio Preference Optimization — reference-model-free)
 * **SimPO** (Simple Preference Optimization — length-normalized margin)
 * **KTO** (Kahneman-Tversky Optimization — binary feedback)
 
 ### 6. 🛡️ Quality Gate & Containment Verification
+
 * Validates fine-tuned checkpoints against regression suites before release (`myai ship`).
 * Enforces containment checks (excludes internal source files, `.git`, `.env`, raw datasets, and traversal paths) before packaging.
 
@@ -137,6 +143,7 @@ Fine-tune beyond standard supervised training with modern preference alignment a
 ## 🖥️ Hardware Tiers & Supported Models
 
 ### Hardware-Aware Feasibility
+
 MYAI evaluates your local hardware capacity (CPU, system RAM, and GPU VRAM) to recommend suitable models and training configurations:
 
 * **Capacity-Matched Recommendations**: Recommends models based on your hardware, data, task, and deployment requirements.
@@ -171,12 +178,14 @@ MYAI supports leading open-weight model architectures spanning **0.1B to 70B+** 
 ## 🧭 Step-by-Step Workflow Guide
 
 ### 1. Initialize Project & Goal
+
 ```bash
 myai init fitness-coach --task domain-qa --domain fitness --context balanced
 cd fitness-coach
 ```
 
 ### 2. Register & Clean Data
+
 ```bash
 # Register dataset source in Reference Mode and inspect token distribution
 myai data add ./coaching_data.jsonl
@@ -186,6 +195,7 @@ myai data clean --fuzzy --val-split 0.1
 ```
 
 ### 3. Model Recommendation & System Check
+
 ```bash
 # Verify local hardware availability
 myai system check
@@ -195,6 +205,7 @@ myai recommend
 ```
 
 ### 4. Fine-Tuning & Alignment
+
 ```bash
 # Standard QLoRA fine-tuning
 myai train --epochs 3 --lr 2e-4
@@ -207,6 +218,7 @@ myai train --task simpo
 ```
 
 ### 5. Automated Verification & Quality Gate
+
 ```bash
 # Generate task-specific verifiers from reference data
 myai reward synth ./data/references.jsonl -o reward.py
@@ -216,6 +228,7 @@ myai ship
 ```
 
 ### 6. Export Standalone Package
+
 ```bash
 # Export standalone Web Chat ZIP
 myai export
@@ -249,9 +262,11 @@ fitness-coach.myai.zip
 ```
 
 ### Launch Web Chat Interface
+
 ```bash
 python chat/app.py
 ```
+
 * Runs on Python's standard library `http.server` with zero external web framework dependencies.
 * Responsive, dark-mode browser interface.
 * Includes real-time streaming, parameter controls, token counters, and message history.
